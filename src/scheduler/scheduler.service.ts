@@ -30,7 +30,7 @@ export class SchedulerService {
         return interval.next().toDate();
     }
 
-    crete(dto: CreateTaskDTO) {
+    create(dto: CreateTaskDTO) {
         try {
             this.getNextRun(dto.expression);
             const task  : Task = {
@@ -57,11 +57,17 @@ export class SchedulerService {
         try {
             const foundTask = this.tasks.find(t => t.id === id);
             if (foundTask) {
+                this.getNextRun(dto.expression);
+                const oldJob = this.schedulerRegistry.getCronJob(id.toString());
+                oldJob.stop();
                 this.schedulerRegistry.deleteCronJob(id.toString());
                 foundTask.title = dto.title;
                 foundTask.expression = dto.expression;
                 this.registerTask(foundTask);
-                return foundTask;
+                return {
+                    message: 'Update successfully!',
+                    data: foundTask,
+                };
             } else {
                 return {message: 'Not found Task!'};
             }
@@ -73,6 +79,7 @@ export class SchedulerService {
     delete(id: number) {
         try {
             this.tasks = this.tasks.filter(i => i.id !== id);
+            job.stop();
             this.schedulerRegistry.deleteCronJob(id.toString());
             return {message: "Delete successfully!"};
         } catch(error: any) {
