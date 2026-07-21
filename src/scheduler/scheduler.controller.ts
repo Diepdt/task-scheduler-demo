@@ -16,7 +16,7 @@ export class SchedulerController {
 
     @Post()
     create(@Body() dto: CreateTaskDTO) {
-        return this.schedulerService.crete(dto);
+        return this.schedulerService.create(dto);
     }
 
     @Get()

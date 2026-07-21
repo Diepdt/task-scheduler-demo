@@ -79,6 +79,7 @@ export class SchedulerService {
     delete(id: number) {
         try {
             this.tasks = this.tasks.filter(i => i.id !== id);
+            const job = this.schedulerRegistry.getCronJob(id.toString());
             job.stop();
             this.schedulerRegistry.deleteCronJob(id.toString());
             return {message: "Delete successfully!"};
