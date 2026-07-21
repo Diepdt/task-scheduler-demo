@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Task Scheduler</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f3efe6;
+      --panel: #fffaf2;
+      --text: #1f1a17;
+      --muted: #6d6259;
+      --accent: #b24a2f;
+      --accent-hover: #963a21;
+      --line: #e3d7c8;
+      --success: #2d7a4c;
+      --danger: #c0392b;
+      --danger-hover: #a02d21;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(178, 74, 47, 0.12), transparent 30%),
+        linear-gradient(180deg, #f8f4ec 0%, var(--bg) 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 48px 20px 64px;
+    }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 20px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .hero-content {
+      display: grid;
+      gap: 12px;
+    }
+
+    .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(32px, 5vw, 48px);
+      line-height: 1.1;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 68ch;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(178, 74, 47, 0.25);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(178, 74, 47, 0.35);
+    }
+
+    .btn-secondary {
+      background: #fff;
+      border-color: var(--line);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: #fdfaf6;
+      border-color: var(--muted);
+    }
+
+    .btn-danger-outline {
+      background: #fff;
+      border-color: #f3c4be;
+      color: var(--danger);
+    }
+
+    .btn-danger-outline:hover {
+      background: #fdf2f1;
+      border-color: var(--danger);
+    }
+
+    .btn-sm {
+      padding: 6px 10px;
+      font-size: 12px;
+      border-radius: 8px;
+    }
+
+    .card {
+      background: rgba(255, 250, 242, 0.92);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: 0 18px 50px rgba(31, 26, 23, 0.08);
+      overflow: hidden;
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .table thead th {
+      text-align: left;
+      padding: 16px 18px;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .table tbody td {
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(227, 215, 200, 0.8);
+      vertical-align: middle;
+    }
+
+    .table tbody tr:hover {
+      background: rgba(178, 74, 47, 0.04);
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .actions-cell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .empty {
+      padding: 24px 18px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* Modal Styles */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(31, 26, 23, 0.5);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .modal-backdrop.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      background: #fffaf2;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      width: 100%;
+      max-width: 640px;
+      box-shadow: 0 24px 60px rgba(31, 26, 23, 0.2);
+      overflow: hidden;
+      transform: scale(0.95) translateY(10px);
+      transition: transform 0.25s ease;
+    }
+
+    .modal-backdrop.active .modal {
+      transform: scale(1) translateY(0);
+    }
+
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      font-size: 24px;
+      line-height: 1;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 8px;
+    }
+
+    .modal-close:hover {
+      background: rgba(0, 0, 0, 0.05);
+      color: var(--text);
+    }
+
+    .modal-body {
+      padding: 24px;
+      display: grid;
+      gap: 20px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .form-group {
+      display: grid;
+      gap: 8px;
+    }
+
+    .form-group label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(178, 74, 47, 0.15);
+    }
+
+    .input-mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    .mode-toggle {
+      display: flex;
+      background: #ede3d5;
+      padding: 4px;
+      border-radius: 12px;
+      gap: 4px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .mode-btn.active {
+      background: #fff;
+      color: var(--text);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
+    /* 6-Field Cron Builder Grid */
+    .cron-builder-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+    }
+
+    @media (max-width: 580px) {
+      .cron-builder-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .cron-field {
+      display: grid;
+      gap: 4px;
+      text-align: center;
+    }
+
+    .cron-field label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .cron-field input {
+      text-align: center;
+      padding: 8px 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-weight: 600;
+    }
+
+    .presets-label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      background: #fff;
+      border: 1px solid var(--line);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .chip:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(178, 74, 47, 0.05);
+    }
+
+    /* Preview Box */
+    .preview-box {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .preview-cron {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .preview-cron code {
+      background: #f4eee5;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .preview-status {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .preview-status.valid {
+      color: var(--success);
+    }
+
+    .preview-status.invalid {
+      color: var(--danger);
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      background: #f8f2e7;
+      border-top: 1px solid var(--line);
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div class="hero-content">
+        <div class="eyebrow">Task Scheduler</div>
+        <h1>Danh sách job</h1>
+      </div>
+      <div>
+        <button id="open-modal-btn" class="btn btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Thêm Job mới
+        </button>
+      </div>
+    </section>
+
+    <section class="card">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Cron Expression</th>
+            <th>Hành động</th>
+            <th>Log</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <tr>
+            <td colspan="4" class="empty">Đang tải dữ liệu...</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <!-- Modal thêm / sửa Job -->
+  <div id="modal-overlay" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modal-title">Thêm Job Mới</h2>
+        <button id="close-modal-btn" class="modal-close" aria-label="Đóng">&times;</button>
+      </div>
+      <form id="add-job-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="job-title">Tên Job / Mô tả</label>
+            <input id="job-title" class="input" type="text" placeholder="Ví dụ: Kiểm tra dữ liệu hệ thống" required />
+          </div>
+
+          <div class="form-group">
+            <label>Phương thức cấu hình thời gian</label>
+            <div class="mode-toggle">
+              <button type="button" id="mode-builder-btn" class="mode-btn active">Bộ dựng Cron 6 trường</button>
+              <button type="button" id="mode-raw-btn" class="mode-btn">Chuỗi Cron trực tiếp</button>
+            </div>
+          </div>
+
+          <!-- Builder View -->
+          <div id="builder-container" class="form-group">
+            <label>Cấu hình 6 trường Cron (Giây | Phút | Giờ | Ngày | Tháng | Thứ)</label>
+            <div class="cron-builder-grid">
+              <div class="cron-field">
+                <label for="cron-sec">Giây</label>
+                <input id="cron-sec" class="input input-mono" type="text" value="0" placeholder="0-59" />
+              </div>
+              <div class="cron-field">
+                <label for="cron-min">Phút</label>
+                <input id="cron-min" class="input input-mono" type="text" value="*/5" placeholder="0-59" />
+              </div>
+              <div class="cron-field">
+                <label for="cron-hour">Giờ</label>
+                <input id="cron-hour" class="input input-mono" type="text" value="*" placeholder="0-23" />
+              </div>
+              <div class="cron-field">
+                <label for="cron-dom">Ngày</label>
+                <input id="cron-dom" class="input input-mono" type="text" value="*" placeholder="1-31" />
+              </div>
+              <div class="cron-field">
+                <label for="cron-month">Tháng</label>
+                <input id="cron-month" class="input input-mono" type="text" value="*" placeholder="1-12" />
+              </div>
+              <div class="cron-field">
+                <label for="cron-dow">Thứ</label>
+                <input id="cron-dow" class="input input-mono" type="text" value="*" placeholder="0-6" />
+              </div>
+            </div>
+
+            <div>
+              <div class="presets-label">Gợi ý mẫu nhanh:</div>
+              <div class="presets">
+                <button type="button" class="chip" data-cron="*/10 * * * * *">Mỗi 10 giây</button>
+                <button type="button" class="chip" data-cron="0 */5 * * * *">Mỗi 5 phút</button>
+                <button type="button" class="chip" data-cron="0 0 * * * *">Mỗi giờ</button>
+                <button type="button" class="chip" data-cron="0 0 9 * * *">9h sáng mỗi ngày</button>
+                <button type="button" class="chip" data-cron="0 0 8 * * 1-5">8h sáng Thứ 2 - Thứ 6</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Raw Cron Input View -->
+          <div id="raw-container" class="form-group" style="display: none;">
+            <label for="raw-cron-input">Chuỗi Cron Expression (5 hoặc 6 trường)</label>
+            <input id="raw-cron-input" class="input input-mono" type="text" placeholder="e.g. */10 * * * * *" />
+          </div>
+
+          <!-- Live Validation Box -->
+          <div class="preview-box">
+            <div class="preview-cron">
+              <span>Cron Expression:</span>
+              <code id="cron-preview-text">0 */5 * * * *</code>
+            </div>
+            <div id="validation-status" class="preview-status valid">
+              Đang kiểm tra thời gian chạy...
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" id="cancel-btn" class="btn btn-secondary">Hủy</button>
+          <button type="submit" id="submit-btn" class="btn btn-primary">Tạo Job</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const tableBody = document.getElementById('table-body');
+    const openModalBtn = document.getElementById('open-modal-btn');
+    const closeModalBtn = document.getElementById('close-modal-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const modalOverlay = document.getElementById('modal-overlay');
+    const addJobForm = document.getElementById('add-job-form');
+    const modalTitle = document.getElementById('modal-title');
+    const submitBtn = document.getElementById('submit-btn');
+
+    const modeBuilderBtn = document.getElementById('mode-builder-btn');
+    const modeRawBtn = document.getElementById('mode-raw-btn');
+    const builderContainer = document.getElementById('builder-container');
+    const rawContainer = document.getElementById('raw-container');
+
+    const cronSec = document.getElementById('cron-sec');
+    const cronMin = document.getElementById('cron-min');
+    const cronHour = document.getElementById('cron-hour');
+    const cronDom = document.getElementById('cron-dom');
+    const cronMonth = document.getElementById('cron-month');
+    const cronDow = document.getElementById('cron-dow');
+    const rawCronInput = document.getElementById('raw-cron-input');
+
+    const cronPreviewText = document.getElementById('cron-preview-text');
+    const validationStatus = document.getElementById('validation-status');
+
+    let currentMode = 'builder'; // 'builder' | 'raw'
+    let validateTimeout = null;
+    let editingJobId = null; // null = create mode, number = edit mode
+    let tasksData = [];
+
+    // Render Empty Table State
+    const renderEmpty = (message) => {
+      tableBody.innerHTML = `<tr><td colspan="4" class="empty">${message}</td></tr>`;
+    };
+
+    // Fetch Tasks
+    const loadTasks = () => {
+      fetch('/scheduler')
+        .then((response) => response.json())
+        .then((tasks) => {
+          tasksData = tasks;
+          if (!Array.isArray(tasks) || tasks.length === 0) {
+            renderEmpty('Chưa có task nào.');
+            return;
+          }
+
+          tableBody.innerHTML = tasks
+            .map(
+              (task) => `
+                  <tr>
+                    <td><a href="/detail.html?id=${task.id}">${escapeHtml(task.title)}</a></td>
+                    <td><span class="pill">${escapeHtml(task.expression)}</span></td>
+                    <td>
+                      <div class="actions-cell">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="handleEditTask(${task.id})">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                          Sửa
+                        </button>
+                        <button type="button" class="btn btn-danger-outline btn-sm" onclick="handleDeleteTask(${task.id}, '${escapeHtml(task.title)}')">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                          Xóa
+                        </button>
+                      </div>
+                    </td>
+                    <td><a href="/detail.html?id=${task.id}">Xem log</a></td>
+                  </tr>
+                `,
+            )
+            .join('');
+        })
+        .catch(() => renderEmpty('Không thể tải danh sách task.'));
+    };
+
+    const escapeHtml = (str) => {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
+
+    // Get Combined Cron Expression
+    const getCronExpression = () => {
+      if (currentMode === 'raw') {
+        return rawCronInput.value.trim();
+      }
+      const s = cronSec.value.trim() || '*';
+      const m = cronMin.value.trim() || '*';
+      const h = cronHour.value.trim() || '*';
+      const dom = cronDom.value.trim() || '*';
+      const mon = cronMonth.value.trim() || '*';
+      const dow = cronDow.value.trim() || '*';
+      return `${s} ${m} ${h} ${dom} ${mon} ${dow}`;
+    };
+
+    // Validate Cron Expression with API
+    const validateCron = () => {
+      const expression = getCronExpression();
+      cronPreviewText.textContent = expression || '(Trống)';
+
+      if (!expression) {
+        validationStatus.className = 'preview-status invalid';
+        validationStatus.textContent = '⚠ Vui lòng nhập chuỗi Cron.';
+        return;
+      }
+
+      clearTimeout(validateTimeout);
+      validateTimeout = setTimeout(() => {
+        fetch('/scheduler/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expression }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.nextRun) {
+              const date = new Date(data.nextRun);
+              validationStatus.className = 'preview-status valid';
+              validationStatus.textContent = `✓ Thời gian chạy tiếp theo: ${date.toLocaleString('vi-VN')}`;
+            } else {
+              validationStatus.className = 'preview-status invalid';
+              validationStatus.textContent = `⚠ ${data.message || 'Cú pháp Cron không hợp lệ.'}`;
+            }
+          })
+          .catch(() => {
+            validationStatus.className = 'preview-status invalid';
+            validationStatus.textContent = '⚠ Không thể xác thực Cron expression.';
+          });
+      }, 300);
+    };
+
+    // Apply Full Cron String to 6 fields
+    const applyCronStringToBuilder = (cronStr) => {
+      const parts = cronStr.trim().split(/\s+/);
+      if (parts.length === 6) {
+        [cronSec.value, cronMin.value, cronHour.value, cronDom.value, cronMonth.value, cronDow.value] = parts;
+      } else if (parts.length === 5) {
+        cronSec.value = '0';
+        [cronMin.value, cronHour.value, cronDom.value, cronMonth.value, cronDow.value] = parts;
+      }
+    };
+
+    // Modal Open/Close
+    const openCreateModal = () => {
+      editingJobId = null;
+      modalTitle.textContent = 'Thêm Job Mới';
+      submitBtn.textContent = 'Tạo Job';
+      document.getElementById('job-title').value = '';
+      applyCronStringToBuilder('0 */5 * * * *');
+      rawCronInput.value = '0 */5 * * * *';
+      modalOverlay.classList.add('active');
+      validateCron();
+    };
+
+    const openEditModal = (task) => {
+      editingJobId = task.id;
+      modalTitle.textContent = `Chỉnh Sửa Job #${task.id}`;
+      submitBtn.textContent = 'Cập Nhật Job';
+      document.getElementById('job-title').value = task.title;
+      applyCronStringToBuilder(task.expression);
+      rawCronInput.value = task.expression;
+      modalOverlay.classList.add('active');
+      validateCron();
+    };
+
+    const closeModal = () => {
+      modalOverlay.classList.remove('active');
+      editingJobId = null;
+    };
+
+    // Global Handlers for Edit & Delete
+    window.handleEditTask = (id) => {
+      const task = tasksData.find((t) => t.id === id);
+      if (task) {
+        openEditModal(task);
+      }
+    };
+
+    window.handleDeleteTask = (id, title) => {
+      if (confirm(`Bạn có chắc chắn muốn xóa job "${title}" (ID: ${id}) không?`)) {
+        fetch(`/scheduler/${id}`, {
+          method: 'DELETE',
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.message && data.message.includes('successfully')) {
+              loadTasks();
+            } else {
+              alert(data.message || 'Không thể xóa Job.');
+            }
+          })
+          .catch(() => alert('Lỗi hệ thống khi xóa Job.'));
+      }
+    };
+
+    openModalBtn.addEventListener('click', openCreateModal);
+    closeModalBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) closeModal();
+    });
+
+    // Switch Mode
+    modeBuilderBtn.addEventListener('click', () => {
+      currentMode = 'builder';
+      modeBuilderBtn.classList.add('active');
+      modeRawBtn.classList.remove('active');
+      builderContainer.style.display = 'grid';
+      rawContainer.style.display = 'none';
+      validateCron();
+    });
+
+    modeRawBtn.addEventListener('click', () => {
+      currentMode = 'raw';
+      modeRawBtn.classList.add('active');
+      modeBuilderBtn.classList.remove('active');
+      rawContainer.style.display = 'grid';
+      builderContainer.style.display = 'none';
+      rawCronInput.value = getCronExpression();
+      validateCron();
+    });
+
+    // Listen to Input Changes
+    [cronSec, cronMin, cronHour, cronDom, cronMonth, cronDow, rawCronInput].forEach((input) => {
+      input.addEventListener('input', validateCron);
+    });
+
+    // Presets Handler
+    document.querySelectorAll('.chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const cron = chip.getAttribute('data-cron');
+        if (cron) {
+          applyCronStringToBuilder(cron);
+          rawCronInput.value = cron;
+          validateCron();
+        }
+      });
+    });
+
+    // Submit Form (Create or Update)
+    addJobForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const title = document.getElementById('job-title').value.trim();
+      const expression = getCronExpression();
+
+      if (!title || !expression) return;
+
+      submitBtn.disabled = true;
+      const isEditing = editingJobId !== null;
+      submitBtn.textContent = isEditing ? 'Đang cập nhật...' : 'Đang tạo...';
+
+      const url = isEditing ? `/scheduler/${editingJobId}` : '/scheduler';
+      const method = isEditing ? 'PUT' : 'POST';
+
+      fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, expression }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.data) {
+            closeModal();
+            document.getElementById('job-title').value = '';
+            loadTasks();
+          } else {
+            alert(data.message || (isEditing ? 'Không thể cập nhật Job.' : 'Không thể tạo Job.'));
+          }
+        })
+        .catch(() => alert('Lỗi hệ thống khi lưu Job.'))
+        .finally(() => {
+          submitBtn.disabled = false;
+          submitBtn.textContent = isEditing ? 'Cập Nhật Job' : 'Tạo Job';
+        });
+    });
+
+    // Initial Load
+    loadTasks();
+  </script>
+</body>
+
+</html>

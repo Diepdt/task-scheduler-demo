@@ -1,135 +1,78 @@
-# Demo Cron Scheduler - NestJS
+# Demo Cron Scheduler - NestJS + Redis & BullMQ
 
-Demo hệ thống Scheduler sử dụng NestJS nhằm giải quyết bài toán kiểm tra Cron Expression và thực thi tác vụ tự động theo thời gian người dùng cấu hình.
+Demo hệ thống Scheduler sử dụng NestJS tích hợp **Redis & BullMQ** nhằm giải quyết bài toán kiểm tra Cron Expression, đẩy tác vụ vào hàng chờ (Job Queue) và thực thi xử lý bất đồng bộ ngầm bằng Worker.
 
 Dự án được thực hiện nhằm tìm hiểu cách:
-- Validate Cron Expression
-- Tính lần chạy tiếp theo (`nextRun`)
-- Đăng ký Cron Job động và thực thi theo lịch bằng NestJS
+- Validate Cron Expression và tính thời gian chạy tiếp theo (`nextRun`)
+- Đăng ký Cron Job động trong runtime bằng NestJS `@nestjs/schedule`
+- Quản lý hàng chờ (Message Queue) & phân tải công việc bằng **Redis & BullMQ** (`@nestjs/bullmq`)
+- Tự động thực thi, thử lại khi gặp lỗi (Retry with backoff) và lưu lịch sử chạy (`TaskLog`) qua **Prisma ORM**
+
+---
 
 ## Mô Tả Dự Án
 
-**Cron Scheduler Demo** là một ứng dụng học tập xây dựng bằng NestJS. Tập trung vào 2 yêu cầu chính:
+**Cron Scheduler Demo** tập trung vào các yêu cầu cốt lõi:
 
 1. **Validate Cron Expression**: Kiểm tra cú pháp Cron Expression và tính toán thời gian chạy tiếp theo
-2. **Thực thi Job tự động**: Đăng ký Cron Job động và tự động thực thi callback khi đến thời gian được cấu hình
+2. **Hàng chờ & Worker thực thi ngầm (Redis & BullMQ)**: 
+   - Khi đến giờ Cron reo, **`SchedulerService` (Producer)** chỉ ném Job vào **Redis Queue**.
+   - **`TaskProcessor` (Worker / Consumer)** lắng nghe RedisQueue, nhặt công việc ra thực thi độc lập ở phía sau (Background).
+   - Tự động **Retry 3 lần** (cách nhau 5s) nếu công việc bị lỗi.
+3. **Lưu nhật ký thực thi (TaskLog)**: Ghi lại trạng thái (`RUNNING`, `SUCCESS`, `FAILED`), thời điểm bắt đầu, kết thúc và thời gian xử lý (`durationMs`) vào Database.
+4. **Quản lý Task (CRUD)**: Quản lý danh sách tác vụ lên lịch.
 
-CRUD Task chỉ là chức năng phụ để quản lý danh sách công việc.
+---
 
-## Đáp ứng yêu cầu đề bài
-
-### 1. Validate Cron Expression
-
-- Nhập Cron Expression từ request
-- Kiểm tra cú pháp bằng `cron-parser`
-- Nếu **hợp lệ**:
-  - Trả về `nextRun`: thời gian chạy tiếp theo
-  - Status: `valid: true`
-- Nếu **không hợp lệ**:
-  - Trả về thông báo lỗi từ `cron-parser`
-  - Status: `valid: false`
-
-### 2. Thực thi công việc theo lịch
-
-Sau khi người dùng tạo Task:
-
-- Lưu Task vào bộ nhớ RAM
-- Đăng ký **CronJob động** bằng `cron` library
-- Sử dụng `SchedulerRegistry` để quản lý job trong NestJS
-- Khi đến **đúng thời gian**:
-  - Callback được gọi tự động
-  - Demo bằng `console.log("Execute Task: ...")`
-
-### 3. Quản lý Task (CRUD)
-
-- Tạo Task
-- Xem danh sách Task
-- Cập nhật Task
-- Xóa Task
-
-## Kiến trúc xử lý
+## Kiến Trúc Xử Lý (Architecture)
 
 ```
-Nguời dùng nhập Cron Expression
-              ↓
-        cron-parser
-              ↓
-      Kiểm tra cú pháp
-              ↓
-        Nếu hợp lệ
-              ↓
-      Tính Next Run
-              ↓
-     Tạo CronJob
-              ↓
-   SchedulerRegistry
-     đăng ký Job
-              ↓
-      Đến thời gian
-              ↓
-    Callback thực thi
-      (console.log)
+[Người dùng / Client]
+        │
+        ▼ (HTTP Requests)
+ [SchedulerController]
+        │
+        ▼
+ [SchedulerService] ──(Cron reo)──► [Redis Queue (BullMQ)]
+ (Producer)                                │
+                                           ▼ (Lấy Job ngầm)
+                                    [TaskProcessor]
+                                    (Worker / Consumer)
+                                           │
+                                           ▼ (Ghi Log)
+                                  [Database (Prisma ORM)]
 ```
 
-## Giải pháp
+---
 
-### Validate Cron Expression
+## Công Nghệ Sử Dụng
 
-**Thư viện**: `cron-parser`
+- **NestJS 11.0.1**: Framework Node.js chính
+- **@nestjs/bullmq & BullMQ**: Quản lý Job Queue & Worker background process
+- **Redis**: In-memory Message Broker / Data Store
+- **Prisma ORM**: Quản lý Database & Task History Log
+- **@nestjs/schedule & cron**: Module lập lịch động
+- **cron-parser**: Validate và tính biểu thức Cron
+- **Swagger UI**: Tài liệu hóa API (`/api`)
+- **TypeScript**: Ngôn ngữ lập trình chính
 
-**Chức năng**:
-- Validate Cron Expression
-- Tính lần chạy tiếp theo
-- Trả về thông báo lỗi khi sai cú pháp
+---
 
-**Ví dụ**:
-```typescript
-const interval = CronExpressionParser.parse("0 0 * * *");
-const nextRun = interval.next().toDate(); // 2026-07-15T00:00:00.000Z
-```
+## Cài Đặt & Chạy Ứng Dụng
 
-### Thực thi Job Động
-
-**Thư viện**:
-- `cron`: Tạo CronJob
-- `@nestjs/schedule`: Module lập lịch
-- `SchedulerRegistry`: Quản lý job trong runtime
-
-**Chức năng**:
-- Tạo CronJob động từ Cron Expression
-- Đăng ký Job vào SchedulerRegistry
-- Tự động thực thi callback khi đến thời gian
-- Có thể start/stop/delete job
-
-**Ví dụ**:
-```typescript
-const job = new CronJob(expression, () => {
-  console.log(`Execute Task: ${title}`);
-});
-this.schedulerRegistry.addCronJob(id.toString(), job);
-job.start();
-```
-
-## Công Nghệ
-
-- **NestJS 11.0.1**: Framework Node.js
-- **@nestjs/schedule**: Module lập lịch
-- **SchedulerRegistry**: Quản lý Cron Job
-- **cron**: Thư viện thực thi Cron
-- **cron-parser**: Validate và tính Cron Expression
-- **Swagger**: API documentation
-- **class-validator**: Validation DTO
-- **TypeScript**: Ngôn ngữ chính
-
-## Cài Đặt
-
-### Yêu Cầu
-- Node.js 18+ 
+### Yêu Cầu Tiền Đề
+- Node.js 18+
 - npm hoặc yarn
+- **Redis Server** đang chạy trên `localhost:6379` (hoặc cấu hình thông qua biến môi trường `REDIS_HOST`, `REDIS_PORT`)
+
+> 💡 **Khởi động Redis nhanh bằng Docker**:
+> ```bash
+> docker run -d -p 6379:6379 --name redis-task-scheduler redis:alpine
+> ```
 
 ### Các Bước Cài Đặt
 
-1. **Clone hoặc tải dự án**
+1. **Clone hoặc chuyển vào thư mục dự án**
    ```bash
    cd task_schedule_v0
    ```
@@ -139,226 +82,69 @@ job.start();
    npm install
    ```
 
-3. **Chạy ứng dụng ở chế độ phát triển**
+3. **Chạy Migration Database (Prisma)**
+   ```bash
+   npx prisma db push
+   ```
+
+4. **Chạy ứng dụng ở chế độ phát triển**
    ```bash
    npm run start:dev
    ```
 
-   Ứng dụng sẽ khởi động trên `http://localhost:3000`
+   Ứng dụng sẽ khởi động tại `http://localhost:3000`
+   Swagger UI xem API: `http://localhost:3000/api`
 
-## Sử Dụng
-
-### Khởi Động Ứng Dụng
-
-**Chế độ phát triển (Development):**
-```bash
-npm run start:dev
-```
-
-**Chế độ sản xuất (Production):**
-```bash
-npm run build
-npm run start:prod
-```
-
-**Chế độ debug:**
-```bash
-npm run start:debug
-```
-
-### Truy Cập API Documentation
-
-Sau khi khởi động ứng dụng, truy cập Swagger UI tại:
-```
-http://localhost:3000/api
-```
-
-## API Endpoints
-
-Tất cả các endpoint nằm dưới route `/scheduler`
-
-### 1. Validate Cron Expression
-
-**Endpoint**: `POST /scheduler/validate`
-
-**Mô tả**: Kiểm tra tính hợp lệ của biểu thức Cron
-
-**Request Body**:
-```json
-{
-  "expression": "0 */2 * * * *"
-}
-```
-
-**Response Success (200)**:
-```json
-{
-  "valid": true,
-  "nextRun": "2026-07-15T10:00:00.000Z"
-}
-```
-
-**Response Error (400)**:
-```json
-{
-  "valid": false,
-  "message": "Invalid cron expression"
-}
-```
-
-### 2. Tạo Tác Vụ
-
-**Endpoint**: `POST /scheduler`
-
-**Mô tả**: Tạo một tác vụ lên lịch mới
-
-**Request Body**:
-```json
-{
-  "title": "Backup Database",
-  "expression": "0 2 * * *"
-}
-```
-
-**Response Success (201)**:
-```json
-{
-  "message": "Create successfully!",
-  "data": {
-    "id": 1,
-    "title": "Backup Database",
-    "expression": "0 2 * * *"
-  }
-}
-```
-
-**Response Error**:
-```json
-{
-  "message": "Invalid cron expression"
-}
-```
-
-### 3. Lấy Danh Sách Tất Cả Tác Vụ
-
-**Endpoint**: `GET /scheduler`
-
-**Mô tả**: Lấy danh sách tất cả các tác vụ được tạo
-
-**Response Success (200)**:
-```json
-[
-  {
-    "id": 1,
-    "title": "Backup Database",
-    "expression": "0 2 * * *"
-  },
-  {
-    "id": 2,
-    "title": "Clean Logs",
-    "expression": "0 0 * * 0"
-  }
-]
-```
-
-### 4. Cập Nhật Tác Vụ
-
-**Endpoint**: `PUT /scheduler/:id`
-
-**Mô tả**: Cập nhật thông tin của một tác vụ
-
-**Request Body**:
-```json
-{
-  "title": "Daily Backup",
-  "expression": "0 3 * * *"
-}
-```
-
-**Response Success (200)**:
-```json
-{
-  "id": 1,
-  "title": "Daily Backup",
-  "expression": "0 3 * * *"
-}
-```
-
-### 5. Xóa Tác Vụ
-
-**Endpoint**: `DELETE /scheduler/:id`
-
-**Mô tả**: Xóa một tác vụ
-
-**Response Success (200)**:
-```json
-{
-  "message": "Delete successfully!"
-}
-```
+---
 
 ## Cấu Trúc Dự Án
 
 ```
 task_schedule_v0/
 ├── src/
-│   ├── main.ts                    # Entry point
-│   ├── app.module.ts              # Root module
-│   ├── app.controller.ts          # App controller
-│   ├── app.service.ts             # App service
+│   ├── main.ts                    # Entry point ứng dụng
+│   ├── app.module.ts              # Root module (Cấu hình BullModule Redis)
+│   ├── app.controller.ts          
+│   ├── app.service.ts             
+│   ├── prisma/                    # Module Prisma kết nối CSDL
+│   │   ├── prisma.module.ts
+│   │   └── prisma.service.ts
 │   └── scheduler/
-│       ├── scheduler.module.ts    # Scheduler module
-│       ├── scheduler.controller.ts # Scheduler controller
-│       ├── scheduler.service.ts   # Scheduler service (logic chính)
+│       ├── scheduler.module.ts    # Đăng ký Queue 'task-scheduler' & Providers
+│       ├── scheduler.controller.ts # REST API Controller
+│       ├── scheduler.service.ts   # Producer: Tạo Task & đẩy Job vào Redis
+│       ├── task.processor.ts      # Worker/Consumer: Nhận Job từ Redis & xử lý
 │       ├── dto/
 │       │   ├── createTask.dto.ts
 │       │   ├── updateTask.dto.ts
 │       │   └── validate-cron.dto.ts
 │       └── interfaces/
 │           └── task.interface.ts
-├── test/
-│   ├── app.e2e-spec.ts
-│   └── jest-e2e.json
+├── prisma/
+│   └── schema.prisma              # Database Schema (Task, TaskLog)
 ├── package.json
-├── tsconfig.json
-├── tsconfig.build.json
-├── nest-cli.json
-├── eslint.config.mjs
 └── README.md
 ```
 
-## Giải Thích Các Thành Phần Chính
+---
 
-### SchedulerService
-Dịch vụ chính chứa logic quản lý tác vụ:
-- `validate()`: Xác thực biểu thức Cron
-- `create()`: Tạo tác vụ mới
-- `get()`: Lấy danh sách tác vụ
-- `update()`: Cập nhật tác vụ
-- `delete()`: Xóa tác vụ
-- `registerTask()`: Đăng ký tác vụ với Cron scheduler
+## API Endpoints (`/scheduler`)
 
-### Task Interface
-```typescript
-interface Task {
-  id: number;
-  title: string;
-  expression: string;
-}
-```
+| Method | Endpoint | Mô Tả |
+| :--- | :--- | :--- |
+| `POST` | `/scheduler/validate` | Kiểm tra cú pháp Cron Expression & tính `nextRun` |
+| `POST` | `/scheduler` | Tạo tác vụ lên lịch mới (Tự động kích hoạt Cron + BullMQ) |
+| `GET` | `/scheduler` | Lấy danh sách tất cả các tác vụ |
+| `GET` | `/scheduler/:id/logs` | Xem lịch sử nhật ký thực thi (`TaskLog`) của một tác vụ |
+| `PUT` | `/scheduler/:id` | Cập nhật tên hoặc biểu thức Cron của tác vụ |
+| `DELETE` | `/scheduler/:id` | Xóa tác vụ & hủy bỏ CronJob tương ứng |
 
-## Ví Dụ Biểu Thức Cron
+---
 
-Dưới đây là một số ví dụ biểu thức Cron phổ biến:
+## Cơ Chế Retry Khi Gặp Lỗi (Fault Tolerance)
 
-| Biểu Thức | Mô Tả |
-|-----------|--------|
-| `0 0 * * *` | Hàng ngày lúc nửa đêm |
-| `0 9 * * 1-5` | Các ngày trong tuần lúc 9:00 sáng |
-| `*/15 * * * *` | Cứ 15 phút |
-| `0 */2 * * *` | Cứ 2 giờ |
-| `0 0 1 * *` | Đầu tháng |
-| `0 0 * * 0` | Hàng tuần vào Chủ nhật |
-| `*/30 * * * * *` | Cứ 30 giây |
+Khi một Job được Worker xử lý trong `TaskProcessor`, nếu xảy ra sự cố (Database timeout, lỗi mạng, lỗi ứng dụng...):
 
-
+1. **Khối Catch bắt lỗi**: Ghi nhận log `FAILED` vào DB và re-throw exception.
+2. **BullMQ nhận biết thất bại**: Đưa Job vào trạng thái chờ (Delay 5 giây).
+3. **Thực thi lại (Retry)**: Sau 5 giây, Worker tự động thử lại Job. Hỗ trợ tối đa **3 lần thử**.

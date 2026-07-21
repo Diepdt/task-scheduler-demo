@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Task {
+  id         Int       @id @default(autoincrement())
+  title      String
+  expression String
+  logs       TaskLog[]
+}
+
+model TaskLog {
+  id         Int       @id @default(autoincrement())
+
+  taskId     Int
+  task       Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  status     LogStatus
+
+  message    String?
+
+  startedAt  DateTime
+
+  finishedAt DateTime?
+
+  durationMs Int?
+
+  createdAt  DateTime  @default(now())
+}
+
+enum LogStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}

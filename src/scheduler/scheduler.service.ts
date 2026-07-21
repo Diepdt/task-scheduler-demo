@@ -1,98 +1,175 @@
-import { Body, Injectable, Post } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ValidateCronDto } from './dto/validate-cron.dto';
 import CronExpressionParser from 'cron-parser';
 import { CreateTaskDTO } from './dto/createTask.dto';
 import { UpdateTaskDto } from './dto/updateTask.dto';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
-import { Task } from './interfaces/task.interface';
+import { PrismaService } from '../prisma/prisma.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+
+type TaskRecord = {
+  id: number;
+  title: string;
+  expression: string;
+};
 
 @Injectable()
-export class SchedulerService {
-    constructor(
-        private readonly schedulerRegistry: SchedulerRegistry,
-    ) {}
+export class SchedulerService implements OnModuleInit {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly schedulerRegistry: SchedulerRegistry,
+    @InjectQueue('task-scheduler') private readonly taskQueue: Queue,
+  ) {}
 
-    private tasks: Task[] = [];
-    private nextId = 1;
+  async onModuleInit() {
+    const tasks = await this.prisma.task.findMany();
+    for (const task of tasks) {
+      this.registerTask(task);
+    }
+  }
 
-    validate(dto: ValidateCronDto) {
-        try {
-            const interval = CronExpressionParser.parse(dto.expression);
-            return {nextRun: interval.next().toDate()};
-        } catch(error: any) {
-            return {message: error.message};
-        }
+  validate(dto: ValidateCronDto) {
+    try {
+      const interval = CronExpressionParser.parse(dto.expression);
+      return { nextRun: interval.next().toDate() };
+    } catch (error: unknown) {
+      return { message: this.getErrorMessage(error) };
+    }
+  }
+
+  private getNextRun(expression: string): Date {
+    const interval = CronExpressionParser.parse(expression);
+    return interval.next().toDate();
+  }
+
+  async create(dto: CreateTaskDTO) {
+    try {
+      this.getNextRun(dto.expression);
+      const createdTask = await this.prisma.task.create({
+        data: {
+          title: dto.title,
+          expression: dto.expression,
+        },
+      });
+
+      this.registerTask(createdTask);
+
+      return {
+        message: 'Create successfully!',
+        data: createdTask,
+      };
+    } catch (error: unknown) {
+      return { message: this.getErrorMessage(error) };
+    }
+  }
+
+  get() {
+    return this.prisma.task.findMany({
+      orderBy: {
+        id: 'asc',
+      },
+    });
+  }
+
+  async update(id: number, dto: UpdateTaskDto) {
+    try {
+      this.getNextRun(dto.expression);
+
+      const foundTask = await this.prisma.task.findUnique({
+        where: { id },
+      });
+
+      if (!foundTask) {
+        return { message: 'Not found Task!' };
+      }
+
+      const updatedTask = await this.prisma.task.update({
+        where: { id },
+        data: {
+          title: dto.title,
+          expression: dto.expression,
+        },
+      });
+
+      this.stopTaskJob(id);
+      this.registerTask(updatedTask);
+
+      return {
+        message: 'Update successfully!',
+        data: updatedTask,
+      };
+    } catch (error: unknown) {
+      return { message: this.getErrorMessage(error) };
+    }
+  }
+
+  async delete(id: number) {
+    try {
+      this.stopTaskJob(id);
+
+      const foundTask = await this.prisma.task.findUnique({
+        where: { id },
+      });
+
+      if (!foundTask) {
+        return { message: 'Not found Task!' };
+      }
+
+      await this.prisma.task.delete({
+        where: { id },
+      });
+
+      return { message: 'Delete successfully!' };
+    } catch (error: unknown) {
+      return { message: this.getErrorMessage(error) };
+    }
+  }
+
+  async getLogs(taskId: number) {
+    return this.prisma.taskLog.findMany({
+      where: {
+        taskId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  private registerTask(task: TaskRecord) {
+    const job = new CronJob(task.expression, async () => {
+      console.log(`[Scheduler] Cron triggered for task "${task.title}" (ID: ${task.id}). Dispatching to BullMQ queue...`);
+      await this.taskQueue.add(
+        'execute-task',
+        {
+          taskId: task.id,
+          title: task.title,
+        },
+        {
+          attempts: 3,
+          backoff: 5000,
+        },
+      );
+    });
+
+    void this.schedulerRegistry.addCronJob(task.id.toString(), job);
+    void job.start();
+  }
+
+  private stopTaskJob(id: number) {
+    if (!this.schedulerRegistry.doesExist('cron', id.toString())) {
+      return;
     }
 
-    private getNextRun(expression: string): Date {
-        const interval = CronExpressionParser.parse(expression);
-        return interval.next().toDate();
-    }
+    const job = this.schedulerRegistry.getCronJob(id.toString());
+    void job.stop();
+    void this.schedulerRegistry.deleteCronJob(id.toString());
+  }
 
-    create(dto: CreateTaskDTO) {
-        try {
-            this.getNextRun(dto.expression);
-            const task  : Task = {
-                id: this.nextId++,
-                title: dto.title,
-                expression: dto.expression
-            }
-            this.tasks.push(task);
-            this.registerTask(task);
-            return {
-                message: 'Create successfully!',
-                data: task
-            }
-        } catch (error: any) {
-            return {message: error.message}
-        }
-    }
-
-    get() {
-        return this.tasks;
-    }
-
-    update(id: number, dto: UpdateTaskDto) {
-        try {
-            const foundTask = this.tasks.find(t => t.id === id);
-            if (foundTask) {
-                this.getNextRun(dto.expression);
-                const oldJob = this.schedulerRegistry.getCronJob(id.toString());
-                oldJob.stop();
-                this.schedulerRegistry.deleteCronJob(id.toString());
-                foundTask.title = dto.title;
-                foundTask.expression = dto.expression;
-                this.registerTask(foundTask);
-                return {
-                    message: 'Update successfully!',
-                    data: foundTask,
-                };
-            } else {
-                return {message: 'Not found Task!'};
-            }
-        } catch(error: any) {
-            return {message: error.message};
-        }
-    }
-
-    delete(id: number) {
-        try {
-            this.tasks = this.tasks.filter(i => i.id !== id);
-            const job = this.schedulerRegistry.getCronJob(id.toString());
-            job.stop();
-            this.schedulerRegistry.deleteCronJob(id.toString());
-            return {message: "Delete successfully!"};
-        } catch(error: any) {
-            return {message: error.message};
-        }
-    }
-
-    private registerTask(task: Task) {
-        const job = new CronJob(task.expression, () => {
-            console.log(`Execute Task: ${task.title}`);
-        });
-        this.schedulerRegistry.addCronJob(task.id.toString(), job);
-        job.start();
-    }
+  private getErrorMessage(error: unknown) {
+    return error instanceof Error ? error.message : 'Unknown error';
+  }
 }
+

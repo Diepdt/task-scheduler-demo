@@ -52,5 +52,9 @@ pids
 *.seed
 *.pid.lock
 
+# Prisma local database
+prisma/dev.db
+prisma/dev.db-journal
+
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
