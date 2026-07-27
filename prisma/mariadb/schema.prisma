@@ -1,0 +1,16 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/@internal/prisma/mariadb-client"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("MARIADB_URL")
+}
+
+model SyncedTask {
+  id         Int      @id
+  title      String
+  expression String
+  syncedAt   DateTime @default(now())
+}
