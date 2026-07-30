@@ -14,3 +14,15 @@ model SyncedTask {
   expression String
   syncedAt   DateTime @default(now())
 }
+
+model SyncedUser {
+  id        Int      @id
+  email     String   @unique
+  password  String
+  name      String
+  phone     String   @unique
+  role      String
+  createdAt DateTime
+  updatedAt DateTime
+  syncedAt  DateTime @default(now())
+}

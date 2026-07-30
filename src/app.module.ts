@@ -6,6 +6,9 @@ import { SchedulerModule } from './scheduler/scheduler.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { BullModule } from '@nestjs/bullmq';
 import { join } from 'path';
+import { UserModule } from './user/user.module';
+import { MinioModule } from './minio/minio.module';
+import { SyncModule } from './sync/sync.module';
 
 @Module({
   imports: [
@@ -20,6 +23,9 @@ import { join } from 'path';
       },
     }),
     SchedulerModule,
+    UserModule,
+    MinioModule,
+    SyncModule,
   ],
   controllers: [AppController],
   providers: [AppService],
