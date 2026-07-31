@@ -9,6 +9,8 @@ import { join } from 'path';
 import { UserModule } from './user/user.module';
 import { MinioModule } from './minio/minio.module';
 import { SyncModule } from './sync/sync.module';
+import { HealthModule } from './health/health.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { SyncModule } from './sync/sync.module';
     UserModule,
     MinioModule,
     SyncModule,
+    HealthModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

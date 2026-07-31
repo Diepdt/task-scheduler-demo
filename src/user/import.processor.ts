@@ -7,6 +7,7 @@ import { plainToInstance } from 'class-transformer';
 import { CreateUserDto } from './dto/create-user.dto';
 import { validate } from 'class-validator';
 import { Role } from '@prisma/client';
+import * as crypto from 'crypto';
 
 export type ImportJobData = {
   previewKey: string;
@@ -87,7 +88,13 @@ export class ImportProcessor extends WorkerHost {
         const dupEmail = await this.prisma.user.findUnique({ where: { email: userData.email } });
         const dupPhone = await this.prisma.user.findUnique({ where: { phone: userData.phone } });
         if (!dupEmail && !dupPhone) {
-          await this.prisma.user.create({ data: userData });
+          const hashedPassword = crypto.createHash('sha256').update(userData.password).digest('hex');
+          await this.prisma.user.create({
+            data: {
+              ...userData,
+              password: hashedPassword,
+            },
+          });
           successCount++;
         } else {
           failedRows.push({ ...userData, errorReason: 'Email hoặc Số điện thoại đã tồn tại (Race Condition)' });

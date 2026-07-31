@@ -53,4 +53,14 @@ export class MinioService implements OnModuleInit {
       stream.on('error', err => reject(err));
     });
   }
+
+  // Ping kết nối MinIO
+  async ping(): Promise<boolean> {
+    try {
+      await this.minioClient.bucketExists('excel-logs');
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 }

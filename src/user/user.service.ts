@@ -2,6 +2,7 @@ import { Injectable, ConflictException, NotFoundException } from '@nestjs/common
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import * as crypto from 'crypto';
 import { GetUsersQueryDto } from './dto/get-users-query.dto';
 import { MinioService } from '../minio/minio.service';
 import { Response } from 'express';
@@ -18,7 +19,7 @@ export class UserService {
     private readonly prisma: PrismaService,
     private readonly minioService: MinioService,
     @InjectQueue('import-users') private readonly importQueue: Queue,
-  ) {}
+  ) { }
 
   async create(dto: CreateUserDto) {
     const existingEmail = await this.prisma.user.findUnique({
@@ -35,8 +36,13 @@ export class UserService {
       throw new ConflictException('Số điện thoại này đã được đăng ký sử dụng!');
     }
 
+    const hashedPassword = crypto.createHash('sha256').update(dto.password).digest('hex');
+
     return this.prisma.user.create({
-      data: dto,
+      data: {
+        ...dto,
+        password: hashedPassword,
+      },
     });
   }
 
@@ -115,9 +121,14 @@ export class UserService {
       }
     }
 
+    const updateData = { ...dto };
+    if (dto.password) {
+      updateData.password = crypto.createHash('sha256').update(dto.password).digest('hex');
+    }
+
     return this.prisma.user.update({
       where: { id },
-      data: dto,
+      data: updateData,
     });
   }
 
@@ -259,6 +270,7 @@ export class UserService {
       ]);
     });
 
+    // Cấu hình Header báo hiệu cho trình duyệt đây là file Excel tải xuống
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
