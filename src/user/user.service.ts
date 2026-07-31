@@ -175,11 +175,24 @@ export class UserService {
     worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
       if (rowNumber === 1) return;
 
-      const email = row.getCell(1).text?.trim();
-      const password = row.getCell(2).text?.toString()?.trim();
-      const name = row.getCell(3).text?.trim();
-      const phone = row.getCell(4).text?.trim();
-      const role = row.getCell(5).text?.trim() as Role;
+      const cleanCellText = (cell: any): string => {
+        if (!cell) return '';
+        const val = cell.value;
+        if (val && typeof val === 'object') {
+          if ('text' in val) return String(val.text || '').trim();
+          if ('result' in val) return String(val.result || '').trim();
+        }
+        return String(val !== undefined && val !== null ? val : (cell.text || '')).trim();
+      };
+
+      let email = cleanCellText(row.getCell(1));
+      if (email.toLowerCase().startsWith('mailto:')) {
+        email = email.substring(7).trim();
+      }
+      const password = cleanCellText(row.getCell(2));
+      const name = cleanCellText(row.getCell(3));
+      const phone = cleanCellText(row.getCell(4));
+      const role = cleanCellText(row.getCell(5)) as Role;
 
       const p = (async () => {
         const userDto = plainToInstance(CreateUserDto, { email, password, name, phone, role });
@@ -281,29 +294,43 @@ export class UserService {
     res.end();
   }
 
-  // 3. Seed nhanh 1000 bản ghi mẫu
+  // 3. Seed nhanh 100.000 bản ghi mẫu
   async seedDemoUsers() {
-    const count = 1000;
-    const usersData: any[] = [];
+    const count = 100000;
+    const batchSize = 10000;
     const roles = [Role.USER, Role.STAFF, Role.ADMIN];
+    let seededCount = 0;
 
-    for (let i = 1; i <= count; i++) {
-      const timestamp = Date.now();
-      const email = `demo.user${i}.${timestamp}@example.com`;
-      usersData.push({
-        email,
-        password: `password_demo_${i}`,
-        name: `Demo User ${i}`,
-        phone: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
-        role: roles[i % 3],
+    for (let batchStart = 1; batchStart <= count; batchStart += batchSize) {
+      const usersData: any[] = [];
+      const batchEnd = Math.min(batchStart + batchSize - 1, count);
+      
+      for (let i = batchStart; i <= batchEnd; i++) {
+        const timestamp = Date.now();
+        const randomStr = crypto.randomBytes(4).toString('hex');
+        const email = `demo.user${i}.${timestamp}.${randomStr}@example.com`;
+        
+        // Random 10-digit Vietnamese phone number
+        const randomPhone = `09${Math.floor(10000000 + Math.random() * 90000000)}`;
+        
+        usersData.push({
+          email,
+          password: `password_demo_${i}`,
+          name: `Demo User ${i}`,
+          phone: randomPhone,
+          role: roles[i % 3],
+        });
+      }
+
+      await this.prisma.user.createMany({
+        data: usersData,
+        skipDuplicates: true,
       });
+
+      seededCount += usersData.length;
+      console.log(`[UserService] Đã seed ${seededCount}/${count} users...`);
     }
 
-    await this.prisma.user.createMany({
-      data: usersData,
-      skipDuplicates: true,
-    });
-
-    return { message: `Đã seed thành công ${count} người dùng mẫu vào PostgreSQL.` };
+    return { message: `Đã seed thành công ${seededCount} người dùng mẫu vào PostgreSQL.` };
   }
 }

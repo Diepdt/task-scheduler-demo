@@ -45,11 +45,24 @@ export class ImportProcessor extends WorkerHost {
       worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
         if (rowNumber === 1) return; // Bỏ qua header
 
-        const email = row.getCell(1).text?.trim();
-        const password = row.getCell(2).text?.toString()?.trim();
-        const name = row.getCell(3).text?.trim();
-        const phone = row.getCell(4).text?.trim();
-        const role = row.getCell(5).text?.trim() as Role;
+        const cleanCellText = (cell: any): string => {
+          if (!cell) return '';
+          const val = cell.value;
+          if (val && typeof val === 'object') {
+            if ('text' in val) return String(val.text || '').trim();
+            if ('result' in val) return String(val.result || '').trim();
+          }
+          return String(val !== undefined && val !== null ? val : (cell.text || '')).trim();
+        };
+
+        let email = cleanCellText(row.getCell(1));
+        if (email.toLowerCase().startsWith('mailto:')) {
+          email = email.substring(7).trim();
+        }
+        const password = cleanCellText(row.getCell(2));
+        const name = cleanCellText(row.getCell(3));
+        const phone = cleanCellText(row.getCell(4));
+        const role = cleanCellText(row.getCell(5)) as Role;
 
         const p = (async () => {
           const userDto = plainToInstance(CreateUserDto, { email, password, name, phone, role });

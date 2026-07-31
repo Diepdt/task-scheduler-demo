@@ -443,11 +443,210 @@
     .error-row .reason {
       color: var(--danger);
     }
+
+    /* Auth Modal Overlay */
+    .auth-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(243, 239, 230, 0.95) 0%, rgba(255, 250, 242, 0.98) 100%);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      backdrop-filter: blur(10px);
+      padding: 20px;
+    }
+
+    .auth-overlay.active {
+      display: flex;
+    }
+
+    .auth-card {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(31, 26, 23, 0.12);
+      width: 100%;
+      max-width: 440px;
+      padding: 40px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      transition: all 0.3s ease;
+    }
+
+    .auth-header {
+      text-align: center;
+    }
+
+    .auth-header h2 {
+      margin: 0 0 8px 0;
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .auth-header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      display: inline-block;
+    }
+
+    .auth-form {
+      display: grid;
+      gap: 16px;
+    }
+
+    .auth-form .input-group {
+      display: grid;
+      gap: 6px;
+    }
+
+    .auth-form label {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+    }
+
+    .auth-form input, .auth-form select {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #faf8f5;
+      font-size: 14px;
+      color: var(--text);
+      transition: all 0.2s ease;
+    }
+
+    .auth-form input:focus, .auth-form select:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(178, 74, 47, 0.1);
+    }
+
+    .auth-toggle {
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .auth-toggle a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .auth-toggle a:hover {
+      text-decoration: underline;
+    }
+
+    /* Top Auth Info Header */
+    .top-bar-auth {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+      padding: 8px 0;
+      font-size: 14px;
+    }
+
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .user-role-badge {
+      background: rgba(178, 74, 47, 0.1);
+      color: var(--accent);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
   </style>
 </head>
 
 <body>
+  <!-- Auth Fullscreen Overlay -->
+  <div id="auth-overlay" class="auth-overlay active">
+    <div class="auth-card">
+      <div class="auth-header">
+        <h2 id="auth-title">Đăng Nhập</h2>
+        <p id="auth-subtitle">Nhập email và mật khẩu của bạn để quản lý hệ thống</p>
+      </div>
+
+      <!-- Login Form -->
+      <form id="auth-login-form" class="auth-form" onsubmit="handleLoginSubmit(event)">
+        <div class="input-group">
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" required placeholder="name@example.com">
+        </div>
+        <div class="input-group">
+          <label for="login-password">Mật khẩu</label>
+          <input type="password" id="login-password" required placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn btn-primary" style="justify-content: center; width: 100%;">Đăng Nhập</button>
+      </form>
+
+      <!-- Register Form (hidden initially) -->
+      <form id="auth-register-form" class="auth-form" onsubmit="handleRegisterSubmit(event)" style="display: none;">
+        <div class="input-group">
+          <label for="register-name">Họ và Tên</label>
+          <input type="text" id="register-name" required placeholder="Nguyễn Văn A">
+        </div>
+        <div class="input-group">
+          <label for="register-email">Email</label>
+          <input type="email" id="register-email" required placeholder="name@example.com">
+        </div>
+        <div class="input-group">
+          <label for="register-phone">Số điện thoại</label>
+          <input type="text" id="register-phone" required placeholder="09xxxxxxxx">
+        </div>
+        <div class="input-group">
+          <label for="register-password">Mật khẩu</label>
+          <input type="password" id="register-password" required placeholder="Tối thiểu 6 ký tự">
+        </div>
+        <div class="input-group">
+          <label for="register-role">Role</label>
+          <select id="register-role" required>
+            <option value="USER" selected>USER</option>
+            <option value="STAFF">STAFF</option>
+            <option value="ADMIN">ADMIN</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary" style="justify-content: center; width: 100%;">Đăng Ký Tài Khoản</button>
+      </form>
+
+      <div class="auth-toggle">
+        <span id="auth-toggle-text">Chưa có tài khoản? <a onclick="toggleAuthMode(true)">Đăng ký ngay</a></span>
+      </div>
+    </div>
+  </div>
+
   <main class="wrap">
+    <!-- Auth Status Top Bar -->
+    <div id="auth-status-bar" class="top-bar-auth" style="display: none;">
+      <div class="user-badge">
+        <span id="auth-user-name">Đang tải...</span>
+        <span id="auth-user-role" class="user-role-badge">USER</span>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="logout()">Đăng xuất</button>
+    </div>
+
     <!-- Tab Navigation Bar -->
     <nav class="tabs-nav">
       <button id="tab-jobs-btn" class="tab-btn active" onclick="switchTab('jobs')">Cấu hình Cron Jobs</button>
@@ -500,7 +699,7 @@
         <div style="display: flex; gap: 8px;">
           <button class="btn btn-secondary" onclick="downloadTemplate()">Tải excel mẫu</button>
           <button class="btn btn-secondary" onclick="exportUsers()">Xuất Excel</button>
-          <button class="btn btn-secondary" onclick="seedUsers()">Seed 1000 Users</button>
+          <button class="btn btn-secondary" onclick="seedUsers()">Seed 100.000 Users</button>
           <button class="btn btn-primary" onclick="openUserModal()">Thêm User mới</button>
         </div>
       </section>
@@ -651,6 +850,7 @@
                 <th>ID</th>
                 <th>Bắt đầu lúc</th>
                 <th>Kết thúc lúc</th>
+                <th>Thời gian chạy</th>
                 <th>Trạng thái</th>
                 <th>Số bản ghi</th>
                 <th>Chi tiết / Ghi chú</th>
@@ -658,7 +858,7 @@
             </thead>
             <tbody id="sync-table-body">
               <tr>
-                <td colspan="6" class="empty">Đang tải lịch sử đồng bộ...</td>
+                <td colspan="7" class="empty">Đang tải lịch sử đồng bộ...</td>
               </tr>
             </tbody>
           </table>
@@ -802,6 +1002,139 @@
 
   <!-- Scripts -->
   <script>
+    // Authentication & Fetch helper
+    function authenticatedFetch(url, options = {}) {
+      const token = localStorage.getItem('access_token');
+      options.headers = options.headers || {};
+      if (token) {
+        options.headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      return fetch(url, options).then(res => {
+        if (res.status === 401) {
+          logout();
+          throw new Error('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+        }
+        return res;
+      });
+    }
+
+    function checkAuth() {
+      const token = localStorage.getItem('access_token');
+      const userStr = localStorage.getItem('user');
+      const authOverlay = document.getElementById('auth-overlay');
+      const authStatusBar = document.getElementById('auth-status-bar');
+      
+      if (token && userStr) {
+        authOverlay.classList.remove('active');
+        authStatusBar.style.display = 'flex';
+        try {
+          const user = JSON.parse(userStr);
+          document.getElementById('auth-user-name').textContent = user.name;
+          document.getElementById('auth-user-role').textContent = user.role;
+        } catch (e) {
+          // ignore
+        }
+        return true;
+      } else {
+        authOverlay.classList.add('active');
+        authStatusBar.style.display = 'none';
+        return false;
+      }
+    }
+
+    let isRegisterMode = false;
+    function toggleAuthMode(toRegister) {
+      isRegisterMode = toRegister;
+      const loginForm = document.getElementById('auth-login-form');
+      const registerForm = document.getElementById('auth-register-form');
+      const title = document.getElementById('auth-title');
+      const subtitle = document.getElementById('auth-subtitle');
+      const toggleText = document.getElementById('auth-toggle-text');
+      
+      if (isRegisterMode) {
+        loginForm.style.display = 'none';
+        registerForm.style.display = 'grid';
+        title.textContent = 'Đăng Ký';
+        subtitle.textContent = 'Tạo tài khoản mới để quản lý hệ thống';
+        toggleText.innerHTML = 'Đã có tài khoản? <a onclick="toggleAuthMode(false)">Đăng nhập ngay</a>';
+      } else {
+        loginForm.style.display = 'grid';
+        registerForm.style.display = 'none';
+        title.textContent = 'Đăng Nhập';
+        subtitle.textContent = 'Nhập email và mật khẩu của bạn để quản lý hệ thống';
+        toggleText.innerHTML = 'Chưa có tài khoản? <a onclick="toggleAuthMode(true)">Đăng ký ngay</a>';
+      }
+    }
+
+    function handleLoginSubmit(event) {
+      event.preventDefault();
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      
+      fetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      })
+      .then(res => {
+        if (!res.ok) {
+          return res.json().then(data => {
+            throw new Error(data.message || 'Email hoặc Mật khẩu không chính xác!');
+          });
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data.access_token) {
+          localStorage.setItem('access_token', data.access_token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          checkAuth();
+          loadTasks();
+        }
+      })
+      .catch(err => {
+        alert(err.message);
+      });
+    }
+
+    function handleRegisterSubmit(event) {
+      event.preventDefault();
+      const name = document.getElementById('register-name').value.trim();
+      const email = document.getElementById('register-email').value.trim();
+      const phone = document.getElementById('register-phone').value.trim();
+      const password = document.getElementById('register-password').value;
+      const role = document.getElementById('register-role').value;
+      
+      fetch('/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, phone, password, role })
+      })
+      .then(res => {
+        if (!res.ok) {
+          return res.json().then(data => {
+            throw new Error(data.message || 'Lỗi đăng ký tài khoản!');
+          });
+        }
+        return res.json();
+      })
+      .then(data => {
+        alert('Đăng ký thành công! Hãy đăng nhập bằng tài khoản vừa tạo.');
+        toggleAuthMode(false);
+        document.getElementById('login-email').value = email;
+      })
+      .catch(err => {
+        alert(err.message);
+      });
+    }
+
+    function logout() {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user');
+      checkAuth();
+    }
+
     // Tab switching controller
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -897,7 +1230,7 @@
       const expression = getCronExpression();
       currentCronExpr.textContent = expression;
 
-      fetch('/scheduler/validate', {
+      authenticatedFetch('/scheduler/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ expression }),
@@ -926,7 +1259,7 @@
 
     function loadTasks() {
       const tbody = document.getElementById('table-body');
-      fetch('/scheduler')
+      authenticatedFetch('/scheduler')
         .then((res) => res.json())
         .then((tasks) => {
           if (tasks.length === 0) {
@@ -958,7 +1291,7 @@
 
     function deleteJob(id) {
       if (!confirm('Bạn có chắc muốn xóa Job này không?')) return;
-      fetch(`/scheduler/${id}`, { method: 'DELETE' })
+      authenticatedFetch(`/scheduler/${id}`, { method: 'DELETE' })
         .then(() => loadTasks())
         .catch(() => alert('Lỗi khi xóa Job.'));
     }
@@ -974,7 +1307,7 @@
       const url = isEditing ? `/scheduler/${editingJobId}` : '/scheduler';
       const method = isEditing ? 'PUT' : 'POST';
 
-      fetch(url, {
+      authenticatedFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, expression }),
@@ -1019,7 +1352,7 @@
       const tbody = document.getElementById('user-table-body');
       const url = `/users?page=${userPage}&limit=${userLimit}&search=${encodeURIComponent(userSearch)}&role=${userRole}&sortBy=${userSortBy}&sortOrder=${userSortOrder}`;
 
-      fetch(url)
+      authenticatedFetch(url)
         .then(res => res.json())
         .then(resData => {
           const { data, meta } = resData;
@@ -1130,7 +1463,7 @@
         payload.password = password;
       }
 
-      fetch(url, {
+      authenticatedFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -1149,7 +1482,7 @@
 
     function deleteUser(id) {
       if (!confirm('Bạn có thực sự muốn xóa người dùng này?')) return;
-      fetch(`/users/${id}`, { method: 'DELETE' })
+      authenticatedFetch(`/users/${id}`, { method: 'DELETE' })
         .then(res => res.json())
         .then(data => {
           loadUsers();
@@ -1159,18 +1492,49 @@
 
     // Download template
     function downloadTemplate() {
-      window.location.href = '/users/import/template';
+      authenticatedFetch('/users/import/template')
+        .then(res => {
+          if (!res.ok) throw new Error('Không thể tải file mẫu');
+          return res.blob();
+        })
+        .then(blob => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'user_import_template.xlsx';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+        })
+        .catch(err => alert(err.message));
     }
 
     // Export Excel
     function exportUsers() {
-      window.location.href = `/users/export?search=${encodeURIComponent(userSearch)}&role=${userRole}&sortBy=${userSortBy}&sortOrder=${userSortOrder}`;
+      const url = `/users/export?search=${encodeURIComponent(userSearch)}&role=${userRole}&sortBy=${userSortBy}&sortOrder=${userSortOrder}`;
+      authenticatedFetch(url)
+        .then(res => {
+          if (!res.ok) throw new Error('Không thể xuất Excel');
+          return res.blob();
+        })
+        .then(blob => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'users_list.xlsx';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+        })
+        .catch(err => alert(err.message));
     }
 
     // Seed users
     function seedUsers() {
-      if (!confirm('Bạn có muốn tự động tạo 1000 người dùng mẫu vào PostgreSQL không?')) return;
-      fetch('/users/seed-demo', { method: 'POST' })
+      if (!confirm('Bạn có muốn tự động tạo 100.000 người dùng mẫu vào PostgreSQL không?')) return;
+      authenticatedFetch('/users/seed-demo', { method: 'POST' })
         .then(res => res.json())
         .then(data => {
           alert(data.message || 'Đã seed xong.');
@@ -1192,7 +1556,7 @@
       formData.append('file', file);
 
       // Call API preview
-      fetch('/users/import/preview', {
+      authenticatedFetch('/users/import/preview', {
         method: 'POST',
         body: formData
       })
@@ -1248,7 +1612,7 @@
       btn.disabled = true;
       btn.textContent = 'Đang xếp hàng...';
 
-      fetch('/users/import/confirm', {
+      authenticatedFetch('/users/import/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ previewKey: importPreviewKey }),
@@ -1274,7 +1638,7 @@
        ---------------------------------------------------- */
     function loadSyncStatus() {
       const tbody = document.getElementById('sync-table-body');
-      fetch('/sync/status')
+      authenticatedFetch('/sync/status')
         .then(res => res.json())
         .then(data => {
           const { lastSyncTime, nextRun, history } = data;
@@ -1283,7 +1647,7 @@
           document.getElementById('sync-stat-next-run').textContent = nextRun ? new Date(nextRun).toLocaleString('vi-VN') : 'Không có lịch chạy';
 
           if (history.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" class="empty">Chưa có lịch sử đồng bộ nào được ghi nhận.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="empty">Chưa có lịch sử đồng bộ nào được ghi nhận.</td></tr>`;
             return;
           }
 
@@ -1295,11 +1659,20 @@
               statusPill = `<span class="pill" style="color:var(--danger); font-weight:bold;">FAILED</span>`;
             }
 
+            let durationText = '-';
+            if (h.startedAt && h.finishedAt) {
+              const start = new Date(h.startedAt).getTime();
+              const end = new Date(h.finishedAt).getTime();
+              const diffMs = end - start;
+              durationText = diffMs + ' ms';
+            }
+
             return `
               <tr>
                 <td>${h.id}</td>
                 <td>${new Date(h.startedAt).toLocaleString('vi-VN')}</td>
                 <td>${h.finishedAt ? new Date(h.finishedAt).toLocaleString('vi-VN') : '-'}</td>
+                <td><span class="pill">${durationText}</span></td>
                 <td>${statusPill}</td>
                 <td><span class="pill">${h.recordsCount}</span></td>
                 <td style="font-size: 13px; color: var(--muted);">${h.message || '-'}</td>
@@ -1308,7 +1681,7 @@
           }).join('');
         })
         .catch(() => {
-          tbody.innerHTML = `<tr><td colspan="6" class="empty" style="color:var(--danger);">Lỗi khi tải trạng thái đồng bộ CSDL.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="7" class="empty" style="color:var(--danger);">Lỗi khi tải trạng thái đồng bộ CSDL.</td></tr>`;
         });
     }
 
@@ -1319,7 +1692,7 @@
       document.getElementById('sync-stat-status').textContent = 'Đang đồng bộ';
       document.getElementById('sync-stat-status').style.color = 'var(--info)';
 
-      fetch('/sync/trigger', { method: 'POST' })
+      authenticatedFetch('/sync/trigger', { method: 'POST' })
         .then(res => res.json())
         .then(data => {
           if (data.success) {
@@ -1339,7 +1712,9 @@
     }
 
     // Initial loading
-    loadTasks();
+    if (checkAuth()) {
+      loadTasks();
+    }
   </script>
 </body>
 

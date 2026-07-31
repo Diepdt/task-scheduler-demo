@@ -10,7 +10,7 @@ export class SyncService {
     private readonly maria: MariaPrismaService,
   ) {}
 
-  // 1. Thực thi tiến trình đồng bộ
+  // 1. Thực thi tiến trình đồng bộ (Tối ưu hóa: Batching, Keyset Pagination, Bulk Upsert, Checkpoint)
   async runSync() {
     const startTime = new Date();
     
@@ -19,6 +19,8 @@ export class SyncService {
       data: {
         startedAt: startTime,
         status: 'RUNNING',
+        recordsCount: 0,
+        lastProcessedId: 0,
       },
     });
 
@@ -30,58 +32,113 @@ export class SyncService {
       });
       const lastSyncTime = lastSuccessLog ? lastSuccessLog.startedAt : new Date(0);
 
-      // Lấy toàn bộ users đã cập nhật ở PostgreSQL kể từ thời điểm đồng bộ trước
-      const updatedUsers = await this.postgres.user.findMany({
+      // Kiểm tra xem có phiên đồng bộ bị sập/lỗi trước đó (chạy sau lastSyncTime) để khôi phục checkpoint
+      const lastCrashedLog = await this.postgres.syncLog.findFirst({
         where: {
-          updatedAt: {
+          startedAt: {
             gt: lastSyncTime,
           },
+          id: {
+            not: log.id,
+          },
+          lastProcessedId: {
+            gt: 0,
+          },
         },
+        orderBy: { startedAt: 'desc' },
       });
 
-      let syncedCount = 0;
-      if (updatedUsers.length > 0) {
-        // Đồng bộ từng user sang MariaDB bằng Upsert
-        for (const user of updatedUsers) {
-          await this.maria.syncedUser.upsert({
-            where: { id: user.id },
-            update: {
-              email: user.email,
-              password: user.password,
-              name: user.name,
-              phone: user.phone,
-              role: user.role,
-              createdAt: user.createdAt,
-              updatedAt: user.updatedAt,
-              syncedAt: new Date(),
-            },
-            create: {
-              id: user.id,
-              email: user.email,
-              password: user.password,
-              name: user.name,
-              phone: user.phone,
-              role: user.role,
-              createdAt: user.createdAt,
-              updatedAt: user.updatedAt,
-            },
-          });
-          syncedCount++;
-        }
+      let lastId = 0;
+      if (lastCrashedLog) {
+        lastId = lastCrashedLog.lastProcessedId;
+        console.log(`[SyncService] Phát hiện phiên lỗi #${lastCrashedLog.id}. Khôi phục checkpoint tại ID: ${lastId}`);
       }
 
-      // Cập nhật log thành công
+      let totalSyncedCount = 0;
+      const batchSize = 5000;
+
+      while (true) {
+        // Đọc dữ liệu phân trang Keyset: id > lastId
+        const batchUsers = await this.postgres.user.findMany({
+          where: {
+            updatedAt: {
+              gt: lastSyncTime,
+            },
+            id: {
+              gt: lastId,
+            },
+          },
+          orderBy: {
+            id: 'asc',
+          },
+          take: batchSize,
+        });
+
+        if (batchUsers.length === 0) {
+          break; // Đã xử lý hết dữ liệu
+        }
+
+        // Tạo câu lệnh Bulk Upsert Raw SQL
+        const valuesSql: string[] = [];
+        const queryParams: any[] = [];
+
+        for (const user of batchUsers) {
+          valuesSql.push('(?, ?, ?, ?, ?, ?, ?, ?, NOW())');
+          queryParams.push(
+            user.id,
+            user.email,
+            user.password,
+            user.name,
+            user.phone,
+            user.role,
+            user.createdAt,
+            user.updatedAt
+          );
+        }
+
+        const sql = `
+          INSERT INTO SyncedUser (id, email, password, name, phone, role, createdAt, updatedAt, syncedAt)
+          VALUES ${valuesSql.join(', ')}
+          ON DUPLICATE KEY UPDATE
+            email = VALUES(email),
+            password = VALUES(password),
+            name = VALUES(name),
+            phone = VALUES(phone),
+            role = VALUES(role),
+            createdAt = VALUES(createdAt),
+            updatedAt = VALUES(updatedAt),
+            syncedAt = NOW()
+        `;
+
+        // Thực thi Bulk Upsert sang MariaDB
+        await this.maria.$executeRawUnsafe(sql, ...queryParams);
+
+        // Cập nhật checkpoint sau mỗi Batch thành công
+        lastId = batchUsers[batchUsers.length - 1].id;
+        totalSyncedCount += batchUsers.length;
+
+        await this.postgres.syncLog.update({
+          where: { id: log.id },
+          data: {
+            recordsCount: totalSyncedCount,
+            lastProcessedId: lastId,
+          },
+        });
+
+        console.log(`[SyncService] Đồng bộ thành công Batch ${batchUsers.length} users. ID cuối: ${lastId}. Tổng đã đồng bộ: ${totalSyncedCount}`);
+      }
+
+      // Cập nhật log trạng thái thành công
       await this.postgres.syncLog.update({
         where: { id: log.id },
         data: {
           status: 'SUCCESS',
           finishedAt: new Date(),
-          recordsCount: syncedCount,
         },
       });
 
-      console.log(`[SyncService] Đồng bộ thành công: ${syncedCount} bản ghi.`);
-      return { success: true, syncedCount };
+      console.log(`[SyncService] Tiến trình hoàn tất thành công. Tổng: ${totalSyncedCount} bản ghi.`);
+      return { success: true, syncedCount: totalSyncedCount };
     } catch (error: any) {
       console.error(`[SyncService] Lỗi đồng bộ: ${error.message}`);
       
