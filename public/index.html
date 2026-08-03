@@ -799,6 +799,17 @@
             </div>
           </div>
 
+          <!-- Real-time Import Progress / Status -->
+          <div id="import-progress-block" style="display: none; margin-top: 16px; padding: 16px; border-radius: 12px; background: rgba(45, 122, 76, 0.05); border: 1px solid var(--success);">
+            <div id="import-progress-status" style="font-weight: 700; font-size: 14px; color: var(--success); display: flex; align-items: center; gap: 8px;">
+              <span>Đang xử lý import...</span>
+            </div>
+            <div id="import-progress-msg" style="font-size: 13px; color: var(--muted); margin-top: 6px;">Vui lòng đợi trong giây lát...</div>
+            <div id="import-error-download-block" style="display: none; margin-top: 12px;">
+              <a id="lnk-import-error-download" href="#" class="btn btn-danger-outline btn-sm" target="_blank" style="text-decoration: none;">Tải file Excel chứa các dòng lỗi</a>
+            </div>
+          </div>
+
           <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 12px;">
             <button class="btn btn-secondary" onclick="cancelImport()">Hủy</button>
             <button id="btn-confirm-import" class="btn btn-success" onclick="confirmImport()">Xác nhận Import thật</button>
@@ -1599,11 +1610,19 @@
         });
     }
 
+    let importPollInterval = null;
+
     function cancelImport() {
+      if (importPollInterval) {
+        clearInterval(importPollInterval);
+        importPollInterval = null;
+      }
       importPreviewKey = '';
       document.getElementById('excel-file-input').value = '';
       document.getElementById('selected-file-name').textContent = 'Chưa chọn file nào';
       document.getElementById('import-preview-block').style.display = 'none';
+      document.getElementById('import-progress-block').style.display = 'none';
+      document.getElementById('import-error-download-block').style.display = 'none';
     }
 
     function confirmImport() {
@@ -1612,6 +1631,17 @@
       btn.disabled = true;
       btn.textContent = 'Đang xếp hàng...';
 
+      const progressBlock = document.getElementById('import-progress-block');
+      const progressStatus = document.getElementById('import-progress-status');
+      const progressMsg = document.getElementById('import-progress-msg');
+      const errorDownloadBlock = document.getElementById('import-error-download-block');
+
+      progressBlock.style.display = 'block';
+      progressStatus.innerHTML = '<span>Đang gửi yêu cầu...</span>';
+      progressStatus.style.color = 'var(--info)';
+      progressMsg.textContent = 'Đang xếp hàng công việc vào BullMQ...';
+      errorDownloadBlock.style.display = 'none';
+
       authenticatedFetch('/users/import/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1619,19 +1649,76 @@
       })
         .then(res => res.json())
         .then(data => {
-          alert(data.message || 'Xác nhận thành công.');
-          cancelImport();
-          // Reload list in a few moments
-          setTimeout(() => loadUsers(), 2000);
+          if (data.jobId) {
+            progressStatus.innerHTML = '<span>Đã xếp hàng (Queue)</span>';
+            progressMsg.textContent = 'Đang chờ Worker chạy nền xử lý tệp Excel...';
+            pollImportStatus(data.jobId);
+          } else {
+            alert(data.message || 'Lỗi khi xếp hàng import.');
+            cancelImport();
+          }
         })
         .catch(() => {
           alert('Lỗi kết nối gửi xác nhận.');
+          cancelImport();
         })
         .finally(() => {
           btn.textContent = 'Xác nhận Import thật';
           btn.disabled = false;
         });
     }
+
+    function pollImportStatus(jobId) {
+      if (importPollInterval) clearInterval(importPollInterval);
+
+      const progressStatus = document.getElementById('import-progress-status');
+      const progressMsg = document.getElementById('import-progress-msg');
+      const errorDownloadBlock = document.getElementById('import-error-download-block');
+      const lnkDownload = document.getElementById('lnk-import-error-download');
+
+      importPollInterval = setInterval(() => {
+        authenticatedFetch(`/users/import/status/${jobId}`)
+          .then(res => res.json())
+          .then(data => {
+            const state = data.state;
+            const result = data.result;
+
+            if (state === 'active') {
+              progressStatus.innerHTML = '<span>Đang import dữ liệu...</span>';
+              progressStatus.style.color = 'var(--info)';
+              progressMsg.textContent = 'Hệ thống đang lưu trữ thông tin người dùng mới vào database...';
+            } else if (state === 'completed') {
+              clearInterval(importPollInterval);
+              importPollInterval = null;
+
+              progressStatus.innerHTML = '<span>Hoàn thành tiến trình import!</span>';
+              progressStatus.style.color = 'var(--success)';
+              
+              let msg = `Thành công: ${result?.successCount || 0} tài khoản.`;
+              if (result?.errorCount > 0) {
+                msg += ` Thất bại: ${result.errorCount} dòng.`;
+                if (result.errorUrl) {
+                  errorDownloadBlock.style.display = 'block';
+                  lnkDownload.href = result.errorUrl;
+                }
+              }
+              progressMsg.textContent = msg;
+              loadUsers();
+            } else if (state === 'failed') {
+              clearInterval(importPollInterval);
+              importPollInterval = null;
+
+              progressStatus.innerHTML = '<span>Xảy ra lỗi khi import!</span>';
+              progressStatus.style.color = 'var(--danger)';
+              progressMsg.textContent = `Lỗi Worker: ${data.failedReason || 'Lỗi chưa xác định'}`;
+            }
+          })
+          .catch(err => {
+            console.error('Error polling import status:', err);
+          });
+      }, 1000);
+    }
+
 
     /* ----------------------------------------------------
        DATA SYNC LOGIC (NEW)

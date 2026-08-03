@@ -115,6 +115,14 @@ export class UserController {
     return this.userService.confirmImport(previewKey);
   }
 
+  @Get('import/status/:jobId')
+  @Roles(Role.ADMIN, Role.STAFF)
+  @ApiOperation({ summary: 'Lấy trạng thái và kết quả của Job import từ BullMQ' })
+  getImportStatus(@Param('jobId') jobId: string) {
+    return this.userService.getImportStatus(jobId);
+  }
+
+
   @Get(':id')
   @Roles(Role.ADMIN, Role.STAFF, Role.USER)
   @ApiOperation({ summary: 'Lấy chi tiết một người dùng theo ID' })

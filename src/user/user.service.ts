@@ -246,6 +246,26 @@ export class UserService {
     };
   }
 
+  // Lấy trạng thái của Job trong hàng đợi BullMQ
+  async getImportStatus(jobId: string) {
+    const job = await this.importQueue.getJob(jobId);
+    if (!job) {
+      throw new NotFoundException(`Không tìm thấy Job với ID ${jobId}`);
+    }
+    const state = await job.getState();
+    const result = job.returnvalue;
+    const failedReason = job.failedReason;
+
+    return {
+      id: job.id,
+      state,
+      progress: job.progress,
+      result,
+      failedReason,
+    };
+  }
+
+
   // 2. Xuất dữ liệu ra Excel (Export)
   async exportExcel(query: GetUsersQueryDto, res: Response) {
     const { search, role, sortBy = 'id', sortOrder = 'desc' } = query;
