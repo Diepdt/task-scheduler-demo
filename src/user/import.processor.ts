@@ -38,10 +38,11 @@ export class ImportProcessor extends WorkerHost {
         throw new Error('File Excel trống hoặc không đúng định dạng!');
       }
 
-      const usersToCreate: CreateUserDto[] = [];
+      const rowsData: any[] = [];
       const failedRows: any[] = [];
-      const promises: Promise<void>[] = [];
+      const usersToCreate: CreateUserDto[] = [];
 
+      // 1. Đọc và làm sạch toàn bộ dữ liệu Excel
       worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
         if (rowNumber === 1) return; // Bỏ qua header
 
@@ -64,53 +65,110 @@ export class ImportProcessor extends WorkerHost {
         const phone = cleanCellText(row.getCell(4));
         const role = cleanCellText(row.getCell(5)) as Role;
 
-        const p = (async () => {
-          const userDto = plainToInstance(CreateUserDto, { email, password, name, phone, role });
-          const errors = await validate(userDto);
-
-          if (errors.length > 0) {
-            const errorMsg = errors.map(e => Object.values(e.constraints || {}).join(', ')).join('; ');
-            failedRows.push({ email, password, name, phone, role, errorReason: errorMsg });
-          } else {
-            // Kiểm tra email và số điện thoại trùng
-            const existingEmail = await this.prisma.user.findUnique({
-              where: { email },
-            });
-            const existingPhone = await this.prisma.user.findUnique({
-              where: { phone },
-            });
-
-            if (existingEmail) {
-              failedRows.push({ email, password, name, phone, role, errorReason: 'Email đã tồn tại' });
-            } else if (existingPhone) {
-              failedRows.push({ email, password, name, phone, role, errorReason: 'Số điện thoại đã tồn tại' });
-            } else {
-              usersToCreate.push(userDto);
-            }
-          }
-        })();
-        promises.push(p);
+        rowsData.push({ rowNumber, email, password, name, phone, role });
       });
 
-      await Promise.all(promises);
+      // 2. Gom dữ liệu để Bulk Query kiểm trùng với DB theo từng lô (Batch size 5000)
+      const existingEmailsSet = new Set<string>();
+      const existingPhonesSet = new Set<string>();
+      const batchSize = 5000;
 
-      // 3. Lưu các bản ghi hợp lệ
-      let successCount = 0;
-      for (const userData of usersToCreate) {
-        // Kiểm tra lại đề phòng race conditions
-        const dupEmail = await this.prisma.user.findUnique({ where: { email: userData.email } });
-        const dupPhone = await this.prisma.user.findUnique({ where: { phone: userData.phone } });
-        if (!dupEmail && !dupPhone) {
-          const hashedPassword = crypto.createHash('sha256').update(userData.password).digest('hex');
-          await this.prisma.user.create({
-            data: {
-              ...userData,
-              password: hashedPassword,
+      for (let i = 0; i < rowsData.length; i += batchSize) {
+        const chunk = rowsData.slice(i, i + batchSize);
+        const chunkEmails = chunk.map(r => r.email).filter(Boolean);
+        const chunkPhones = chunk.map(r => r.phone).filter(Boolean);
+
+        if (chunkEmails.length > 0 || chunkPhones.length > 0) {
+          const existingUsers = await this.prisma.user.findMany({
+            where: {
+              OR: [
+                { email: { in: chunkEmails } },
+                { phone: { in: chunkPhones } }
+              ]
             },
+            select: {
+              email: true,
+              phone: true
+            }
           });
-          successCount++;
+
+          for (const u of existingUsers) {
+            existingEmailsSet.add(u.email);
+            existingPhonesSet.add(u.phone);
+          }
+        }
+      }
+
+      // Tập hợp theo dõi trùng lặp nội bộ trong chính file Excel
+      const seenEmails = new Set<string>();
+      const seenPhones = new Set<string>();
+
+      // 3. Thực hiện kiểm tra lỗi và phân loại
+      for (const r of rowsData) {
+        const userDto = plainToInstance(CreateUserDto, {
+          email: r.email,
+          password: r.password,
+          name: r.name,
+          phone: r.phone,
+          role: r.role
+        });
+        const errors = await validate(userDto);
+
+        if (errors.length > 0) {
+          const errorMsg = errors.map(e => Object.values(e.constraints || {}).join(', ')).join('; ');
+          failedRows.push({ email: r.email, password: r.password, name: r.name, phone: r.phone, role: r.role, errorReason: errorMsg });
         } else {
-          failedRows.push({ ...userData, errorReason: 'Email hoặc Số điện thoại đã tồn tại (Race Condition)' });
+          // Check trùng nội bộ file Excel
+          if (seenEmails.has(r.email)) {
+            failedRows.push({ email: r.email, password: r.password, name: r.name, phone: r.phone, role: r.role, errorReason: 'Email bị trùng lặp trong file Excel' });
+            continue;
+          }
+          if (seenPhones.has(r.phone)) {
+            failedRows.push({ email: r.email, password: r.password, name: r.name, phone: r.phone, role: r.role, errorReason: 'Số điện thoại bị trùng lặp trong file Excel' });
+            continue;
+          }
+
+          // Check trùng với CSDL
+          const hasDupEmail = existingEmailsSet.has(r.email);
+          const hasDupPhone = existingPhonesSet.has(r.phone);
+
+          if (hasDupEmail) {
+            failedRows.push({ email: r.email, password: r.password, name: r.name, phone: r.phone, role: r.role, errorReason: 'Email đã tồn tại' });
+          } else if (hasDupPhone) {
+            failedRows.push({ email: r.email, password: r.password, name: r.name, phone: r.phone, role: r.role, errorReason: 'Số điện thoại đã tồn tại' });
+          } else {
+            // Đánh dấu đã quét qua để tránh trùng lặp nội bộ các dòng sau
+            seenEmails.add(r.email);
+            seenPhones.add(r.phone);
+            usersToCreate.push(userDto);
+          }
+        }
+      }
+
+      // 4. Thực hiện Bulk Insert gộp hàng loạt các bản ghi hợp lệ theo từng lô (Batch size 5000)
+      let successCount = 0;
+      if (usersToCreate.length > 0) {
+        const usersWithHashedPassword = usersToCreate.map(u => {
+          const hashedPassword = crypto.createHash('sha256').update(u.password).digest('hex');
+          return {
+            ...u,
+            password: hashedPassword,
+          };
+        });
+
+        for (let i = 0; i < usersWithHashedPassword.length; i += batchSize) {
+          const chunk = usersWithHashedPassword.slice(i, i + batchSize);
+          const insertResult = await this.prisma.user.createMany({
+            data: chunk,
+            skipDuplicates: true, // Bảo vệ toàn vẹn dữ liệu đề phòng race condition
+          });
+          successCount += insertResult.count;
+        }
+
+        // Nếu số lượng thành công ít hơn mong đợi, ghi nhận các dòng lỗi do race condition
+        if (successCount < usersToCreate.length) {
+          const diff = usersToCreate.length - successCount;
+          console.warn(`[BullMQ Worker] Phát hiện ${diff} bản ghi bị bỏ qua do trùng khóa chính (Race Condition).`);
         }
       }
 

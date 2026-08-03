@@ -170,8 +170,9 @@ export class UserService {
 
     const validRows: any[] = [];
     const invalidRows: any[] = [];
-    const promises: Promise<void>[] = [];
+    const rowsData: any[] = [];
 
+    // 1. Đọc và làm sạch dữ liệu của từng dòng trước
     worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
       if (rowNumber === 1) return;
 
@@ -194,30 +195,67 @@ export class UserService {
       const phone = cleanCellText(row.getCell(4));
       const role = cleanCellText(row.getCell(5)) as Role;
 
-      const p = (async () => {
-        const userDto = plainToInstance(CreateUserDto, { email, password, name, phone, role });
-        const errors = await validate(userDto);
-
-        if (errors.length > 0) {
-          const errorMsg = errors.map(e => Object.values(e.constraints || {}).join(', ')).join('; ');
-          invalidRows.push({ row: rowNumber, email, name, phone, role, reason: errorMsg });
-        } else {
-          const existingEmail = await this.prisma.user.findUnique({ where: { email } });
-          const existingPhone = await this.prisma.user.findUnique({ where: { phone } });
-
-          if (existingEmail) {
-            invalidRows.push({ row: rowNumber, email, name, phone, role, reason: 'Email đã tồn tại' });
-          } else if (existingPhone) {
-            invalidRows.push({ row: rowNumber, email, name, phone, role, reason: 'Số điện thoại đã tồn tại' });
-          } else {
-            validRows.push({ row: rowNumber, email, name, phone, role });
-          }
-        }
-      })();
-      promises.push(p);
+      rowsData.push({ rowNumber, email, password, name, phone, role });
     });
 
-    await Promise.all(promises);
+    // 2. Gom tất cả email và số điện thoại để thực hiện truy vấn hàng loạt theo từng lô (Batch size 5000)
+    const existingEmailsSet = new Set<string>();
+    const existingPhonesSet = new Set<string>();
+    const batchSize = 5000;
+
+    for (let i = 0; i < rowsData.length; i += batchSize) {
+      const chunk = rowsData.slice(i, i + batchSize);
+      const chunkEmails = chunk.map(r => r.email).filter(Boolean);
+      const chunkPhones = chunk.map(r => r.phone).filter(Boolean);
+
+      if (chunkEmails.length > 0 || chunkPhones.length > 0) {
+        const existingUsers = await this.prisma.user.findMany({
+          where: {
+            OR: [
+              { email: { in: chunkEmails } },
+              { phone: { in: chunkPhones } }
+            ]
+          },
+          select: {
+            email: true,
+            phone: true
+          }
+        });
+
+        for (const u of existingUsers) {
+          existingEmailsSet.add(u.email);
+          existingPhonesSet.add(u.phone);
+        }
+      }
+    }
+
+    // 3. Thực hiện validate và check trùng trên RAM
+    for (const r of rowsData) {
+      const userDto = plainToInstance(CreateUserDto, {
+        email: r.email,
+        password: r.password,
+        name: r.name,
+        phone: r.phone,
+        role: r.role
+      });
+      const errors = await validate(userDto);
+
+      if (errors.length > 0) {
+        const errorMsg = errors.map(e => Object.values(e.constraints || {}).join(', ')).join('; ');
+        invalidRows.push({ row: r.rowNumber, email: r.email, name: r.name, phone: r.phone, role: r.role, reason: errorMsg });
+      } else {
+        const hasDupEmail = existingEmailsSet.has(r.email);
+        const hasDupPhone = existingPhonesSet.has(r.phone);
+
+        if (hasDupEmail) {
+          invalidRows.push({ row: r.rowNumber, email: r.email, name: r.name, phone: r.phone, role: r.role, reason: 'Email đã tồn tại' });
+        } else if (hasDupPhone) {
+          invalidRows.push({ row: r.rowNumber, email: r.email, name: r.name, phone: r.phone, role: r.role, reason: 'Số điện thoại đã tồn tại' });
+        } else {
+          validRows.push({ row: r.rowNumber, email: r.email, name: r.name, phone: r.phone, role: r.role });
+        }
+      }
+    }
 
     // Lưu file tạm lên MinIO để bước Confirm có thể tải và xử lý
     const previewKey = `temp-imports/import-${Date.now()}-${originalName}`;
