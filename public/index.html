@@ -707,8 +707,9 @@
       <!-- Search, filter and sorting controls -->
       <section class="card" style="padding: 16px 20px; margin-bottom: 16px;">
         <div class="controls-grid">
-          <div class="search-filter-group">
-            <input type="text" id="user-search-input" class="input input-search" placeholder="Tìm kiếm theo Tên hoặc Email..." oninput="handleUserSearch()">
+          <div class="search-filter-group" style="align-items: center; display: flex; gap: 8px;">
+            <input type="text" id="user-search-input" class="input input-search" placeholder="Tìm kiếm theo Tên hoặc Email..." onkeypress="handleSearchKeyPress(event)">
+            <button class="btn btn-primary" onclick="handleUserSearchSubmit()">Tìm kiếm</button>
             <select id="user-role-filter" class="select select-filter" onchange="handleUserFilter()">
               <option value="">-- Tất cả Role --</option>
               <option value="USER">USER</option>
@@ -1402,10 +1403,16 @@
         });
     }
 
-    function handleUserSearch() {
-      userSearch = document.getElementById('user-search-input').value;
+    function handleUserSearchSubmit() {
+      userSearch = document.getElementById('user-search-input').value.trim();
       userPage = 1;
       loadUsers();
+    }
+
+    function handleSearchKeyPress(event) {
+      if (event.key === 'Enter') {
+        handleUserSearchSubmit();
+      }
     }
 
     function handleUserFilter() {
