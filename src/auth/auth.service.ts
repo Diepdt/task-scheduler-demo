@@ -47,6 +47,13 @@ export class AuthService {
     const { email, password } = body;
     const user = await this.prisma.user.findUnique({
       where: { email },
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
     });
 
     if (!user) {
@@ -58,14 +65,15 @@ export class AuthService {
       throw new UnauthorizedException('Email hoặc Mật khẩu không chính xác!');
     }
 
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const roleNames = user.userRoles.map((ur) => ur.role.name);
+    const payload = { sub: user.id, email: user.email, roles: roleNames };
     return {
       access_token: await this.jwtService.signAsync(payload),
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role,
+        roles: roleNames,
       },
     };
   }

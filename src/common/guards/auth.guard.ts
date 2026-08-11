@@ -7,12 +7,12 @@ export class AuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const token = this.extractTokenFromHeader(request);
-    
+
     if (!token) {
       throw new UnauthorizedException('Yêu cầu phải có Access Token để truy cập!');
     }
@@ -25,6 +25,11 @@ export class AuthGuard implements CanActivate {
       // Lấy thông tin user từ PostgreSQL
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
+        include: {
+          userRoles: {
+            include: { role: true }
+          }
+        }
       });
 
       if (!user) {

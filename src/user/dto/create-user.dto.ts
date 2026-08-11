@@ -1,5 +1,4 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsString, MinLength } from 'class-validator';
-import { Role } from '@prisma/client';
+import { IsEmail, IsNotEmpty, IsString, MinLength, IsArray, IsOptional } from 'class-validator';
 import { IsVietnamesePhone } from '../../common/decorators/is-vietnamese-phone.decorator';
 
 export class CreateUserDto {
@@ -20,7 +19,8 @@ export class CreateUserDto {
   @IsNotEmpty({ message: 'Số điện thoại không được để trống' })
   phone: string;
 
-  @IsEnum(Role, { message: 'Quyền (Role) không hợp lệ' })
-  @IsNotEmpty({ message: 'Role không được để trống' })
-  role: Role;
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  roles?: string[];
 }

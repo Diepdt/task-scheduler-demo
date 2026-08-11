@@ -1,6 +1,5 @@
-import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, Min, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Role } from '@prisma/client';
 
 export class GetUsersQueryDto {
   @IsOptional()
@@ -20,8 +19,8 @@ export class GetUsersQueryDto {
   search?: string;
 
   @IsOptional()
-  @IsEnum(Role, { message: 'Role lọc không hợp lệ' })
-  role?: Role;
+  @IsString()
+  role?: string;
 
   @IsOptional()
   @IsString()

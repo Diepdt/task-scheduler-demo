@@ -18,20 +18,13 @@ model Task {
 
 model TaskLog {
   id         Int       @id @default(autoincrement())
-
   taskId     Int
   task       Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
   status     LogStatus
-
   message    String?
-
   startedAt  DateTime
-
   finishedAt DateTime?
-
   durationMs Int?
-
   createdAt  DateTime  @default(now())
 }
 
@@ -41,24 +34,53 @@ enum LogStatus {
   FAILED
 }
 
-enum Role {
-  ADMIN
-  STAFF
-  USER
-}
-
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
   password  String
   name      String
   phone     String   @unique
-  role      Role     @default(USER)
+  userRoles UserRole[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([name(ops: raw("gin_trgm_ops"))], type: Gin)
   @@index([email(ops: raw("gin_trgm_ops"))], type: Gin)
+}
+
+model Role {
+  id Int @id @default(autoincrement())
+  name  String @unique
+  description String?
+  
+  parentId Int?
+  parent Role? @relation("RoleInheritance", fields: [parentId], references: [id])
+  children Role[] @relation("RoleInheritance")
+  rolePermissions RolePermission[]
+  userRoles UserRole[]
+}
+
+model Permission {
+  id  Int @id @default(autoincrement())
+  name String @unique
+  description String?
+  rolePermissions RolePermission[]
+}
+
+model UserRole {
+  userId Int
+  roleId Int
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  @@id([userId, roleId])
+}
+
+model RolePermission {
+  roleId Int
+  permissionId Int
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  @@id([roleId, permissionId])
 }
 
 model SyncLog {

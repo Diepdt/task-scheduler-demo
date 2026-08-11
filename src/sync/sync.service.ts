@@ -68,6 +68,13 @@ export class SyncService {
               gt: lastId,
             },
           },
+          include: {
+            userRoles: {
+              include: {
+                role: true,
+              },
+            },
+          },
           orderBy: {
             id: 'asc',
           },
@@ -83,6 +90,7 @@ export class SyncService {
         const queryParams: any[] = [];
 
         for (const user of batchUsers) {
+          const roleStr = user.userRoles.map((ur) => ur.role.name).join(',');
           valuesSql.push('(?, ?, ?, ?, ?, ?, ?, ?, NOW())');
           queryParams.push(
             user.id,
@@ -90,7 +98,7 @@ export class SyncService {
             user.password,
             user.name,
             user.phone,
-            user.role,
+            roleStr,
             user.createdAt,
             user.updatedAt
           );

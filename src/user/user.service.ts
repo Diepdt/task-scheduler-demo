@@ -9,7 +9,6 @@ import { Response } from 'express';
 import * as ExcelJS from 'exceljs';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
-import { Role } from '@prisma/client';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
@@ -22,26 +21,44 @@ export class UserService {
   ) { }
 
   async create(dto: CreateUserDto) {
+    const { roles, ...userDto } = dto;
     const existingEmail = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+      where: { email: userDto.email },
     });
     if (existingEmail) {
       throw new ConflictException('Email này đã được đăng ký sử dụng!');
     }
 
     const existingPhone = await this.prisma.user.findUnique({
-      where: { phone: dto.phone },
+      where: { phone: userDto.phone },
     });
     if (existingPhone) {
       throw new ConflictException('Số điện thoại này đã được đăng ký sử dụng!');
     }
 
-    const hashedPassword = crypto.createHash('sha256').update(dto.password).digest('hex');
+    const hashedPassword = crypto.createHash('sha256').update(userDto.password).digest('hex');
+
+    const roleNames = roles && roles.length > 0 ? roles : ['USER'];
+    const dbRoles = await this.prisma.role.findMany({
+      where: { name: { in: roleNames } },
+    });
 
     return this.prisma.user.create({
       data: {
-        ...dto,
+        ...userDto,
         password: hashedPassword,
+        userRoles: {
+          create: dbRoles.map((r) => ({
+            roleId: r.id,
+          })),
+        },
+      },
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
       },
     });
   }
@@ -58,7 +75,13 @@ export class UserService {
       ];
     }
     if (role) {
-      where.role = role;
+      where.userRoles = {
+        some: {
+          role: {
+            name: role,
+          },
+        },
+      };
     }
 
     const total = await this.prisma.user.count({ where });
@@ -66,6 +89,13 @@ export class UserService {
       where,
       skip,
       take: limit,
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
       orderBy: {
         [sortBy]: sortOrder,
       },
@@ -87,6 +117,13 @@ export class UserService {
   async findOne(id: number) {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
     });
     if (!user) {
       throw new NotFoundException(`Không tìm thấy người dùng với ID ${id}`);
@@ -121,14 +158,36 @@ export class UserService {
       }
     }
 
-    const updateData = { ...dto };
+    const { roles, ...updateDto } = dto;
+    const updateData: any = { ...updateDto };
     if (dto.password) {
       updateData.password = crypto.createHash('sha256').update(dto.password).digest('hex');
+    }
+
+    if (roles) {
+      const dbRoles = await this.prisma.role.findMany({
+        where: { name: { in: roles } },
+      });
+      await this.prisma.userRole.deleteMany({
+        where: { userId: id },
+      });
+      updateData.userRoles = {
+        create: dbRoles.map((r) => ({
+          roleId: r.id,
+        })),
+      };
     }
 
     return this.prisma.user.update({
       where: { id },
       data: updateData,
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
     });
   }
 
@@ -193,7 +252,7 @@ export class UserService {
       const password = cleanCellText(row.getCell(2));
       const name = cleanCellText(row.getCell(3));
       const phone = cleanCellText(row.getCell(4));
-      const role = cleanCellText(row.getCell(5)) as Role;
+      const role = cleanCellText(row.getCell(5));
 
       rowsData.push({ rowNumber, email, password, name, phone, role });
     });
@@ -236,7 +295,7 @@ export class UserService {
         password: r.password,
         name: r.name,
         phone: r.phone,
-        role: r.role
+        roles: r.role ? [r.role] : [],
       });
       const errors = await validate(userDto);
 
@@ -315,11 +374,24 @@ export class UserService {
       ];
     }
     if (role) {
-      where.role = role;
+      where.userRoles = {
+        some: {
+          role: {
+            name: role,
+          },
+        },
+      };
     }
 
     const users = await this.prisma.user.findMany({
       where,
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
       orderBy: {
         [sortBy]: sortOrder,
       },
@@ -331,12 +403,13 @@ export class UserService {
     worksheet.addRow(['ID', 'Email', 'Tên', 'Số điện thoại', 'Quyền (Role)', 'Ngày tạo']);
 
     users.forEach(u => {
+      const roleStr = u.userRoles.map((ur) => ur.role.name).join(',');
       worksheet.addRow([
         u.id,
         u.email,
         u.name,
         u.phone,
-        u.role,
+        roleStr,
         u.createdAt.toISOString(),
       ]);
     });
@@ -356,8 +429,16 @@ export class UserService {
   async seedDemoUsers() {
     const count = 100000;
     const batchSize = 10000;
-    const roles = [Role.USER, Role.STAFF, Role.ADMIN];
+    const roles = ['USER', 'STAFF', 'ADMIN'];
     let seededCount = 0;
+
+    const dbRoles = await this.prisma.role.findMany({
+      where: { name: { in: roles } },
+    });
+    const roleMap = dbRoles.reduce((acc, r) => {
+      acc[r.name] = r.id;
+      return acc;
+    }, {} as Record<string, number>);
 
     for (let batchStart = 1; batchStart <= count; batchStart += batchSize) {
       const usersData: any[] = [];
@@ -376,7 +457,6 @@ export class UserService {
           password: `password_demo_${i}`,
           name: `Demo User ${i}`,
           phone: randomPhone,
-          role: roles[i % 3],
         });
       }
 
@@ -385,10 +465,91 @@ export class UserService {
         skipDuplicates: true,
       });
 
+      const insertedUsers = await this.prisma.user.findMany({
+        where: { email: { in: usersData.map((u) => u.email) } },
+        select: { id: true, email: true },
+      });
+
+      const userRolesData = insertedUsers.map((u) => {
+        const originalIndex = usersData.findIndex((o) => o.email === u.email);
+        const roleName = roles[originalIndex % 3];
+        const roleId = roleMap[roleName] || dbRoles[0].id;
+        return {
+          userId: u.id,
+          roleId: roleId,
+        };
+      });
+
+      await this.prisma.userRole.createMany({
+        data: userRolesData,
+        skipDuplicates: true,
+      });
+
       seededCount += usersData.length;
       console.log(`[UserService] Đã seed ${seededCount}/${count} users...`);
     }
 
     return { message: `Đã seed thành công ${seededCount} người dùng mẫu vào PostgreSQL.` };
+  }
+
+  async getRoles() {
+    return this.prisma.role.findMany({
+      include: {
+        parent: true,
+        rolePermissions: {
+          include: {
+            permission: true,
+          },
+        },
+      },
+      orderBy: { id: 'asc' },
+    });
+  }
+
+  async getPermissions() {
+    return this.prisma.permission.findMany({
+      orderBy: { id: 'asc' },
+    });
+  }
+
+  async createRole(data: { name: string; description?: string; parentId?: number }) {
+    return this.prisma.role.create({
+      data: {
+        name: data.name,
+        description: data.description,
+        parentId: data.parentId ? Number(data.parentId) : null,
+      },
+    });
+  }
+
+  async deleteRole(id: number) {
+    return this.prisma.role.delete({
+      where: { id },
+    });
+  }
+
+  async getRolePermissions(roleId: number) {
+    const rps = await this.prisma.rolePermission.findMany({
+      where: { roleId },
+      select: { permissionId: true },
+    });
+    return rps.map((rp) => rp.permissionId);
+  }
+
+  async updateRolePermissions(roleId: number, permissionIds: number[]) {
+    await this.prisma.rolePermission.deleteMany({
+      where: { roleId },
+    });
+
+    if (permissionIds && permissionIds.length > 0) {
+      await this.prisma.rolePermission.createMany({
+        data: permissionIds.map((pid) => ({
+          roleId,
+          permissionId: Number(pid),
+        })),
+      });
+    }
+
+    return { message: 'Cấu hình quyền cho vai trò thành công!' };
   }
 }

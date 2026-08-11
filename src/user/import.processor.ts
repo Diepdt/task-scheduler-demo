@@ -6,7 +6,6 @@ import * as ExcelJS from 'exceljs';
 import { plainToInstance } from 'class-transformer';
 import { CreateUserDto } from './dto/create-user.dto';
 import { validate } from 'class-validator';
-import { Role } from '@prisma/client';
 import * as crypto from 'crypto';
 
 export type ImportJobData = {
@@ -63,7 +62,7 @@ export class ImportProcessor extends WorkerHost {
         const password = cleanCellText(row.getCell(2));
         const name = cleanCellText(row.getCell(3));
         const phone = cleanCellText(row.getCell(4));
-        const role = cleanCellText(row.getCell(5)) as Role;
+        const role = cleanCellText(row.getCell(5));
 
         rowsData.push({ rowNumber, email, password, name, phone, role });
       });
@@ -110,7 +109,7 @@ export class ImportProcessor extends WorkerHost {
           password: r.password,
           name: r.name,
           phone: r.phone,
-          role: r.role
+          roles: r.role ? [r.role] : []
         });
         const errors = await validate(userDto);
 
@@ -148,6 +147,12 @@ export class ImportProcessor extends WorkerHost {
       // 4. Thực hiện Bulk Insert gộp hàng loạt các bản ghi hợp lệ theo từng lô (Batch size 5000)
       let successCount = 0;
       if (usersToCreate.length > 0) {
+        const dbRoles = await this.prisma.role.findMany({});
+        const roleMap = dbRoles.reduce((acc, r) => {
+          acc[r.name] = r.id;
+          return acc;
+        }, {} as Record<string, number>);
+
         const usersWithHashedPassword = usersToCreate.map(u => {
           const hashedPassword = crypto.createHash('sha256').update(u.password).digest('hex');
           return {
@@ -158,11 +163,44 @@ export class ImportProcessor extends WorkerHost {
 
         for (let i = 0; i < usersWithHashedPassword.length; i += batchSize) {
           const chunk = usersWithHashedPassword.slice(i, i + batchSize);
+          
+          // Loại bỏ mảng roles trước khi truyền vào database User model
+          const usersDataOnly = chunk.map(({ roles, ...rest }) => rest);
+
           const insertResult = await this.prisma.user.createMany({
-            data: chunk,
+            data: usersDataOnly,
             skipDuplicates: true, // Bảo vệ toàn vẹn dữ liệu đề phòng race condition
           });
           successCount += insertResult.count;
+
+          const chunkEmails = chunk.map(u => u.email);
+          const dbUsers = await this.prisma.user.findMany({
+            where: { email: { in: chunkEmails } },
+            select: { id: true, email: true }
+          });
+
+          const userRolesData: any[] = [];
+          for (const dbUser of dbUsers) {
+            const originalUser = chunk.find(u => u.email === dbUser.email);
+            if (originalUser && originalUser.roles) {
+              for (const rName of originalUser.roles) {
+                const roleId = roleMap[rName];
+                if (roleId) {
+                  userRolesData.push({
+                    userId: dbUser.id,
+                    roleId: roleId
+                  });
+                }
+              }
+            }
+          }
+
+          if (userRolesData.length > 0) {
+            await this.prisma.userRole.createMany({
+              data: userRolesData,
+              skipDuplicates: true
+            });
+          }
         }
 
         // Nếu số lượng thành công ít hơn mong đợi, ghi nhận các dòng lỗi do race condition

@@ -660,6 +660,7 @@
       <button id="tab-jobs-btn" class="tab-btn active" onclick="switchTab('jobs')">Cấu hình Cron Jobs</button>
       <button id="tab-users-btn" class="tab-btn" onclick="switchTab('users')">Quản lý Người dùng</button>
       <button id="tab-sync-btn" class="tab-btn" onclick="switchTab('sync')">Đồng bộ CSDL</button>
+      <button id="tab-rbac-btn" class="tab-btn" onclick="switchTab('rbac')">Phân quyền (RBAC)</button>
     </nav>
 
     <!-- TAB 1: CRON JOBS -->
@@ -885,6 +886,41 @@
         </div>
       </section>
     </div>
+
+    <!-- TAB 4: RBAC MANAGEMENT -->
+    <div id="tab-rbac" class="tab-content">
+      <section class="hero">
+        <div class="hero-content">
+          <div class="eyebrow">Hệ thống quản trị</div>
+          <h1>Quản lý vai trò (Roles) & Quyền hạn (Permissions)</h1>
+        </div>
+        <div>
+          <button class="btn btn-primary" onclick="openRoleModal()">Thêm Role mới</button>
+        </div>
+      </section>
+
+      <section class="card" style="padding: 0; overflow: hidden;">
+        <div class="table-container">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Tên Vai trò</th>
+                <th>Mô tả</th>
+                <th>Vai trò kế thừa (Cha)</th>
+                <th>Số quyền được gán</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="role-table-body">
+              <tr>
+                <td colspan="6" class="empty">Đang tải danh sách vai trò...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   </main>
 
   <!-- MODAL: ADD / EDIT JOB -->
@@ -1015,6 +1051,61 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" onclick="closeUserModal()">Hủy bỏ</button>
           <button type="submit" id="submit-user-btn" class="btn btn-primary">Lưu thông tin</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD ROLE -->
+  <div id="role-modal-overlay" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Thêm Vai trò Mới</h2>
+        <button class="modal-close" onclick="closeRoleModal()">&times;</button>
+      </div>
+      <form id="role-form" onsubmit="handleRoleFormSubmit(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="role-name">Tên vai trò (viết hoa, không dấu)</label>
+            <input id="role-name" class="input" type="text" placeholder="Ví dụ: ADMIN, STAFF, QC..." required />
+          </div>
+          <div class="form-group">
+            <label for="role-description">Mô tả</label>
+            <input id="role-description" class="input" type="text" placeholder="Nhập mô tả vai trò" />
+          </div>
+          <div class="form-group">
+            <label for="role-parent">Kế thừa từ vai trò (Cha)</label>
+            <select id="role-parent" class="select">
+              <option value="">-- Không kế thừa --</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeRoleModal()">Hủy bỏ</button>
+          <button type="submit" class="btn btn-primary">Lưu vai trò</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CONFIGURE PERMISSIONS -->
+  <div id="permissions-modal-overlay" class="modal-backdrop">
+    <div class="modal" style="max-width: 500px;">
+      <div class="modal-header">
+        <h2 id="permissions-modal-title">Cấu hình quyền hạn</h2>
+        <button class="modal-close" onclick="closePermissionsModal()">&times;</button>
+      </div>
+      <form id="permissions-form" onsubmit="handlePermissionsFormSubmit(event)">
+        <input type="hidden" id="permissions-role-id" />
+        <div class="modal-body">
+          <p style="font-size: 13px; color: var(--muted); margin-bottom: 16px;">Chọn các quyền hạn gán trực tiếp cho vai trò này. Lưu ý: các vai trò con kế thừa sẽ tự động có các quyền này.</p>
+          <div id="permissions-list-container" style="display: flex; flex-direction: column; gap: 12px;">
+            <!-- Loaded dynamically -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closePermissionsModal()">Hủy bỏ</button>
+          <button type="submit" class="btn btn-primary">Lưu cấu hình</button>
         </div>
       </form>
     </div>
@@ -1155,7 +1246,6 @@
       checkAuth();
     }
 
-    // Tab switching controller
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -1169,6 +1259,8 @@
         loadUsers();
       } else if (tabId === 'sync') {
         loadSyncStatus();
+      } else if (tabId === 'rbac') {
+        loadRbacData();
       }
     }
 
@@ -1395,7 +1487,7 @@
               <td><strong>${u.name}</strong></td>
               <td>${u.email}</td>
               <td><span class="pill">${u.phone}</span></td>
-              <td><span class="pill" style="font-weight:700; color:var(--accent);">${u.role}</span></td>
+              <td><span class="pill" style="font-weight:700; color:var(--accent);">${u.userRoles ? u.userRoles.map(ur => ur.role.name).join(', ') : '-'}</span></td>
               <td>${new Date(u.createdAt).toLocaleDateString('vi-VN')}</td>
               <td>
                 <div class="actions-cell">
@@ -1445,26 +1537,35 @@
     }
 
     function openUserModal(user = null) {
-      if (user) {
-        editingUserId = user.id;
-        document.getElementById('user-modal-title').textContent = 'Sửa thông tin người dùng';
-        document.getElementById('user-name').value = user.name;
-        document.getElementById('user-email').value = user.email;
-        document.getElementById('user-password-group').style.display = 'none';
-        document.getElementById('user-password').required = false;
-        document.getElementById('user-phone').value = user.phone;
-        document.getElementById('user-role').value = user.role;
-      } else {
-        editingUserId = null;
-        document.getElementById('user-modal-title').textContent = 'Thêm Người Dùng Mới';
-        document.getElementById('user-name').value = '';
-        document.getElementById('user-email').value = '';
-        document.getElementById('user-password-group').style.display = 'grid';
-        document.getElementById('user-password').value = '';
-        document.getElementById('user-password').required = true;
-        document.getElementById('user-phone').value = '';
-        document.getElementById('user-role').value = 'USER';
-      }
+      // Tải động danh sách Roles
+      authenticatedFetch('/users/rbac/roles')
+        .then(res => res.json())
+        .then(roles => {
+          const select = document.getElementById('user-role');
+          select.innerHTML = roles.map(r => `<option value="${r.name}">${r.name}</option>`).join('');
+          
+          if (user) {
+            editingUserId = user.id;
+            document.getElementById('user-modal-title').textContent = 'Sửa thông tin người dùng';
+            document.getElementById('user-name').value = user.name;
+            document.getElementById('user-email').value = user.email;
+            document.getElementById('user-password-group').style.display = 'none';
+            document.getElementById('user-password').required = false;
+            document.getElementById('user-phone').value = user.phone;
+            const userRoleName = user.userRoles && user.userRoles[0] ? user.userRoles[0].role.name : '';
+            select.value = userRoleName;
+          } else {
+            editingUserId = null;
+            document.getElementById('user-modal-title').textContent = 'Thêm Người Dùng Mới';
+            document.getElementById('user-name').value = '';
+            document.getElementById('user-email').value = '';
+            document.getElementById('user-password-group').style.display = 'grid';
+            document.getElementById('user-password').value = '';
+            document.getElementById('user-password').required = true;
+            document.getElementById('user-phone').value = '';
+            select.value = roles.length > 0 ? roles[0].name : '';
+          }
+        });
       userModalOverlay.classList.add('active');
     }
 
@@ -1484,7 +1585,7 @@
       const url = isEditing ? `/users/${editingUserId}` : '/users';
       const method = isEditing ? 'PATCH' : 'POST';
 
-      const payload = { name, email, phone, role };
+      const payload = { name, email, phone, roles: [role] };
       if (!isEditing) {
         payload.password = password;
       }
@@ -1811,6 +1912,159 @@
           document.getElementById('sync-stat-status').textContent = 'Sẵn sàng';
           document.getElementById('sync-stat-status').style.color = 'var(--success)';
         });
+    }
+
+    /* ----------------------------------------------------
+       DYNAMIC RBAC & PERMISSIONS MANAGEMENT LOGIC
+       ---------------------------------------------------- */
+    const roleModalOverlay = document.getElementById('role-modal-overlay');
+    const permissionsModalOverlay = document.getElementById('permissions-modal-overlay');
+
+    function loadRbacData() {
+      // 1. Tải danh sách vai trò (Roles) và render
+      authenticatedFetch('/users/rbac/roles')
+        .then(res => res.json())
+        .then(roles => {
+          const tbody = document.getElementById('role-table-body');
+          if (!Array.isArray(roles) || roles.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty">Chưa có vai trò nào được định nghĩa.</td></tr>';
+            return;
+          }
+
+          // Populate parent role select options in modal
+          const parentSelect = document.getElementById('role-parent');
+          parentSelect.innerHTML = '<option value="">-- Không kế thừa (Cấp cao nhất) --</option>' +
+            roles.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+
+          tbody.innerHTML = roles.map(role => {
+            const parentName = role.parent ? role.parent.name : '-';
+            const permsCount = role.rolePermissions ? role.rolePermissions.length : 0;
+            return `
+              <tr>
+                <td>${role.id}</td>
+                <td><strong>${role.name}</strong></td>
+                <td>${role.description || '-'}</td>
+                <td><span class="user-role-badge" style="background: rgba(35, 88, 166, 0.1); color: var(--accent);">${parentName}</span></td>
+                <td>${permsCount} quyền trực tiếp</td>
+                <td>
+                  <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-secondary btn-sm" onclick="openPermissionsModal(${role.id}, '${role.name}')">Cấu hình quyền</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteRole(${role.id})">Xóa</button>
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        })
+        .catch(() => {
+          document.getElementById('role-table-body').innerHTML = '<tr><td colspan="6" class="empty" style="color: var(--danger);">Lỗi tải danh sách vai trò.</td></tr>';
+        });
+    }
+
+    function openRoleModal() {
+      document.getElementById('role-form').reset();
+      roleModalOverlay.classList.add('active');
+    }
+
+    function closeRoleModal() {
+      roleModalOverlay.classList.remove('active');
+    }
+
+    function handleRoleFormSubmit(e) {
+      e.preventDefault();
+      const name = document.getElementById('role-name').value.trim().toUpperCase();
+      const description = document.getElementById('role-description').value.trim();
+      const parentId = document.getElementById('role-parent').value;
+
+      authenticatedFetch('/users/rbac/roles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description, parentId: parentId ? Number(parentId) : undefined })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.id) {
+            closeRoleModal();
+            loadRbacData();
+          } else {
+            alert(data.message || 'Lỗi tạo vai trò.');
+          }
+        })
+        .catch(() => alert('Lỗi kết nối tạo vai trò.'));
+    }
+
+    function deleteRole(roleId) {
+      if (!confirm('Bạn có chắc chắn muốn xóa vai trò này? Hộp liên kết người dùng và quyền liên quan sẽ bị xóa.')) return;
+      authenticatedFetch(`/users/rbac/roles/${roleId}`, { method: 'DELETE' })
+        .then(res => {
+          if (res.ok) {
+            loadRbacData();
+          } else {
+            alert('Lỗi khi xóa vai trò.');
+          }
+        })
+        .catch(() => alert('Lỗi kết nối khi xóa vai trò.'));
+    }
+
+    function openPermissionsModal(roleId, roleName) {
+      document.getElementById('permissions-role-id').value = roleId;
+      document.getElementById('permissions-modal-title').textContent = `Cấu hình quyền hạn cho: ${roleName}`;
+      
+      const container = document.getElementById('permissions-list-container');
+      container.innerHTML = '<div style="color: var(--muted); font-size: 13px;">Đang tải quyền hạn...</div>';
+
+      // Load all permissions and the role's current permission IDs parallelly
+      Promise.all([
+        authenticatedFetch('/users/rbac/permissions').then(res => res.json()),
+        authenticatedFetch(`/users/rbac/roles/${roleId}/permissions`).then(res => res.json())
+      ])
+        .then(([allPerms, activePermIds]) => {
+          if (!Array.isArray(allPerms) || allPerms.length === 0) {
+            container.innerHTML = '<div style="color: var(--muted); font-size: 13px;">Không tìm thấy quyền hạn nào trong DB.</div>';
+            return;
+          }
+
+          container.innerHTML = allPerms.map(perm => {
+            const checked = activePermIds.includes(perm.id) ? 'checked' : '';
+            return `
+              <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 14px;">
+                <input type="checkbox" name="permission-checkbox" value="${perm.id}" ${checked} style="margin-top: 4px;" />
+                <div>
+                  <strong>${perm.name}</strong>
+                  <div style="font-size: 12px; color: var(--muted);">${perm.description || ''}</div>
+                </div>
+              </label>
+            `;
+          }).join('');
+        })
+        .catch(() => {
+          container.innerHTML = '<div style="color: var(--danger); font-size: 13px;">Lỗi tải quyền hạn.</div>';
+        });
+
+      permissionsModalOverlay.classList.add('active');
+    }
+
+    function closePermissionsModal() {
+      permissionsModalOverlay.classList.remove('active');
+    }
+
+    function handlePermissionsFormSubmit(e) {
+      e.preventDefault();
+      const roleId = document.getElementById('permissions-role-id').value;
+      const checkboxes = document.querySelectorAll('input[name="permission-checkbox"]:checked');
+      const permissionIds = Array.from(checkboxes).map(cb => Number(cb.value));
+
+      authenticatedFetch(`/users/rbac/roles/${roleId}/permissions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permissionIds })
+      })
+        .then(res => res.json())
+        .then(data => {
+          closePermissionsModal();
+          loadRbacData();
+        })
+        .catch(() => alert('Lỗi lưu cấu hình quyền hạn.'));
     }
 
     // Initial loading
