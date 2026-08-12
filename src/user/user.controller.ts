@@ -13,6 +13,7 @@ import {
   BadRequestException,
   Query,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -122,11 +123,28 @@ export class UserController {
   }
 
 
+  @Get('profile')
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: 'Lấy thông tin profile cá nhân!' })
+  getProfile(@Request() req) {
+    return this.userService.findOne(req.user.id);
+  }
+
   @Get(':id')
   @RequirePermissions('USER_READ')
   @ApiOperation({ summary: 'Lấy chi tiết một người dùng theo ID' })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.userService.findOne(id);
+  }
+
+  @Patch('profile')
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: 'Người dùng cập nhật profile cá nhân!' })
+  updateProfile(@Request() req, @Body() updateUserDto: UpdateUserDto) {
+    const userId = req.user.id;
+    // Bỏ roles để tránh việc user tự thay đổi quyền hạn của mình
+    const { roles, ...profileData } = updateUserDto;
+    return this.userService.update(userId, profileData);
   }
 
   @Patch(':id')

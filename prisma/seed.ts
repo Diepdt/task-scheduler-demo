@@ -77,6 +77,27 @@ async function main() {
         create: { roleId: roleAdmin.id, permissionId: findPermId('USER_DELETE') },
     });
 
+    // 4. Tạo tài khoản Super Admin mặc định
+    const crypto = require('crypto');
+    const adminPasswordHash = crypto.createHash('sha256').update('admin123').digest('hex');
+
+    const adminUser = await prisma.user.upsert({
+        where: { email: 'admin@example.com' },
+        update: {},
+        create: {
+            email: 'admin@example.com',
+            password: adminPasswordHash,
+            name: 'Super Admin',
+            phone: '0900000000',
+        },
+    });
+
+    await prisma.userRole.upsert({
+        where: { userId_roleId: { userId: adminUser.id, roleId: roleAdmin.id } },
+        update: {},
+        create: { userId: adminUser.id, roleId: roleAdmin.id },
+    });
+
     console.log('Seeding completed successfully!');
 }
 

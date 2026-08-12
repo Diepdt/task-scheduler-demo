@@ -36,7 +36,7 @@ export class AuthGuard implements CanActivate {
         throw new UnauthorizedException('Người dùng không tồn tại hoặc đã bị xóa!');
       }
 
-      // Đính kèm user vào request để dùng cho RolesGuard và các Controllers
+      // Đính kèm user vào request để dùng cho PermissionGuard và các Controllers
       request['user'] = user;
     } catch {
       throw new UnauthorizedException('Token không hợp lệ hoặc đã hết hạn!');

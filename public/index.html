@@ -358,7 +358,8 @@
       letter-spacing: 0.05em;
     }
 
-    .input, .select {
+    .input,
+    .select {
       width: 100%;
       padding: 10px 14px;
       border: 1px solid var(--line);
@@ -370,7 +371,8 @@
       transition: border-color 0.2s;
     }
 
-    .input:focus, .select:focus {
+    .input:focus,
+    .select:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(178, 74, 47, 0.15);
     }
@@ -522,7 +524,8 @@
       color: var(--muted);
     }
 
-    .auth-form input, .auth-form select {
+    .auth-form input,
+    .auth-form select {
       width: 100%;
       padding: 12px 16px;
       border-radius: 12px;
@@ -533,7 +536,8 @@
       transition: all 0.2s ease;
     }
 
-    .auth-form input:focus, .auth-form select:focus {
+    .auth-form input:focus,
+    .auth-form select:focus {
       outline: none;
       border-color: var(--accent);
       background: #fff;
@@ -608,6 +612,12 @@
           <input type="password" id="login-password" required placeholder="••••••••">
         </div>
         <button type="submit" class="btn btn-primary" style="justify-content: center; width: 100%;">Đăng Nhập</button>
+        <button type="button" class="btn btn-secondary" onclick="window.location.href='/auth/google'"
+          style="margin-top: 10px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <img src="https://tse3.mm.bing.net/th/id/OIP.Kg2FF2wpIK_HLyo8Q56ycAHaFj?r=0&rs=1&pid=ImgDetMain&o=7&rm=3"
+            style="width: 48px;" alt="Google" />
+          Đăng nhập bằng Google
+        </button>
       </form>
 
       <!-- Register Form (hidden initially) -->
@@ -628,15 +638,8 @@
           <label for="register-password">Mật khẩu</label>
           <input type="password" id="register-password" required placeholder="Tối thiểu 6 ký tự">
         </div>
-        <div class="input-group">
-          <label for="register-role">Role</label>
-          <select id="register-role" required>
-            <option value="USER" selected>USER</option>
-            <option value="STAFF">STAFF</option>
-            <option value="ADMIN">ADMIN</option>
-          </select>
-        </div>
-        <button type="submit" class="btn btn-primary" style="justify-content: center; width: 100%;">Đăng Ký Tài Khoản</button>
+        <button type="submit" class="btn btn-primary" style="justify-content: center; width: 100%;">Đăng Ký Tài
+          Khoản</button>
       </form>
 
       <div class="auth-toggle">
@@ -652,6 +655,7 @@
         <span id="auth-user-name">Đang tải...</span>
         <span id="auth-user-role" class="user-role-badge">USER</span>
       </div>
+      <button class="btn btn-secondary btn-sm" onclick="openProfileModal()">Sửa Profile</button>
       <button class="btn btn-secondary btn-sm" onclick="logout()">Đăng xuất</button>
     </div>
 
@@ -717,7 +721,8 @@
       <section class="card" style="padding: 16px 20px; margin-bottom: 16px;">
         <div class="controls-grid">
           <div class="search-filter-group" style="align-items: center; display: flex; gap: 8px;">
-            <input type="text" id="user-search-input" class="input input-search" placeholder="Tìm kiếm theo Tên hoặc Email..." onkeypress="handleSearchKeyPress(event)">
+            <input type="text" id="user-search-input" class="input input-search"
+              placeholder="Tìm kiếm theo Tên hoặc Email..." onkeypress="handleSearchKeyPress(event)">
             <button class="btn btn-primary" onclick="handleUserSearchSubmit()">Tìm kiếm</button>
             <select id="user-role-filter" class="select select-filter" onchange="handleUserFilter()">
               <option value="">-- Tất cả Role --</option>
@@ -776,10 +781,13 @@
       <!-- Import Wizard Section -->
       <section class="import-wizard">
         <h3 style="margin-top: 0; margin-bottom: 8px;">Nhập dữ liệu nâng cao từ Excel</h3>
-        <p style="font-size: 13px; margin-bottom: 16px;">Chọn file Excel để tải lên, hệ thống sẽ kiểm tra và hiển thị kết quả xem trước (Preview) lỗi trước khi ghi vào CSDL.</p>
+        <p style="font-size: 13px; margin-bottom: 16px;">Chọn file Excel để tải lên, hệ thống sẽ kiểm tra và hiển thị
+          kết quả xem trước (Preview) lỗi trước khi ghi vào CSDL.</p>
         <div style="display: flex; gap: 12px; align-items: center;">
-          <input type="file" id="excel-file-input" accept=".xlsx, .xls" style="display: none;" onchange="handleFileChange(event)">
-          <button class="btn btn-secondary" onclick="document.getElementById('excel-file-input').click()">Chọn file excel</button>
+          <input type="file" id="excel-file-input" accept=".xlsx, .xls" style="display: none;"
+            onchange="handleFileChange(event)">
+          <button class="btn btn-secondary" onclick="document.getElementById('excel-file-input').click()">Chọn file
+            excel</button>
           <span id="selected-file-name" style="font-size: 13px; color: var(--muted);">Chưa chọn file nào</span>
         </div>
 
@@ -803,26 +811,32 @@
 
           <!-- Error details display -->
           <div id="preview-errors-block" style="display: none; margin-top: 16px;">
-            <div style="font-weight: 700; font-size: 13px; color: var(--danger);">Danh sách các dòng bị lỗi chi tiết:</div>
+            <div style="font-weight: 700; font-size: 13px; color: var(--danger);">Danh sách các dòng bị lỗi chi tiết:
+            </div>
             <div class="error-list-container" id="preview-error-list">
               <!-- Error rows go here -->
             </div>
           </div>
 
           <!-- Real-time Import Progress / Status -->
-          <div id="import-progress-block" style="display: none; margin-top: 16px; padding: 16px; border-radius: 12px; background: rgba(45, 122, 76, 0.05); border: 1px solid var(--success);">
-            <div id="import-progress-status" style="font-weight: 700; font-size: 14px; color: var(--success); display: flex; align-items: center; gap: 8px;">
+          <div id="import-progress-block"
+            style="display: none; margin-top: 16px; padding: 16px; border-radius: 12px; background: rgba(45, 122, 76, 0.05); border: 1px solid var(--success);">
+            <div id="import-progress-status"
+              style="font-weight: 700; font-size: 14px; color: var(--success); display: flex; align-items: center; gap: 8px;">
               <span>Đang xử lý import...</span>
             </div>
-            <div id="import-progress-msg" style="font-size: 13px; color: var(--muted); margin-top: 6px;">Vui lòng đợi trong giây lát...</div>
+            <div id="import-progress-msg" style="font-size: 13px; color: var(--muted); margin-top: 6px;">Vui lòng đợi
+              trong giây lát...</div>
             <div id="import-error-download-block" style="display: none; margin-top: 12px;">
-              <a id="lnk-import-error-download" href="#" class="btn btn-danger-outline btn-sm" target="_blank" style="text-decoration: none;">Tải file Excel chứa các dòng lỗi</a>
+              <a id="lnk-import-error-download" href="#" class="btn btn-danger-outline btn-sm" target="_blank"
+                style="text-decoration: none;">Tải file Excel chứa các dòng lỗi</a>
             </div>
           </div>
 
           <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 12px;">
             <button class="btn btn-secondary" onclick="cancelImport()">Hủy</button>
-            <button id="btn-confirm-import" class="btn btn-success" onclick="confirmImport()">Xác nhận Import thật</button>
+            <button id="btn-confirm-import" class="btn btn-success" onclick="confirmImport()">Xác nhận Import
+              thật</button>
           </div>
         </div>
       </section>
@@ -847,15 +861,18 @@
         <h3 style="margin-top: 0; margin-bottom: 16px;">Trạng thái đồng bộ</h3>
         <div class="preview-results-grid">
           <div class="stat-card">
-            <div id="sync-stat-last-time" class="stat-number" style="font-size: 18px; line-height: 28px; padding: 5px 0;">Chưa đồng bộ</div>
+            <div id="sync-stat-last-time" class="stat-number"
+              style="font-size: 18px; line-height: 28px; padding: 5px 0;">Chưa đồng bộ</div>
             <div class="stat-label">Thời gian đồng bộ gần nhất</div>
           </div>
           <div class="stat-card">
-            <div id="sync-stat-next-run" class="stat-number" style="font-size: 18px; line-height: 28px; padding: 5px 0; color: var(--info);">Không có lịch</div>
+            <div id="sync-stat-next-run" class="stat-number"
+              style="font-size: 18px; line-height: 28px; padding: 5px 0; color: var(--info);">Không có lịch</div>
             <div class="stat-label">Thời gian chạy kế tiếp (Cron)</div>
           </div>
           <div class="stat-card">
-            <div id="sync-stat-status" class="stat-number" style="font-size: 18px; line-height: 28px; padding: 5px 0; color: var(--success);">Sẵn sàng</div>
+            <div id="sync-stat-status" class="stat-number"
+              style="font-size: 18px; line-height: 28px; padding: 5px 0; color: var(--success);">Sẵn sàng</div>
             <div class="stat-label">Trạng thái hệ thống</div>
           </div>
         </div>
@@ -940,8 +957,10 @@
           <div class="form-group">
             <label>Phương thức cấu hình thời gian</label>
             <div class="mode-toggle">
-              <button type="button" id="mode-builder-btn" class="mode-btn active" onclick="switchCronMode('builder')">Bộ dựng Cron 6 trường</button>
-              <button type="button" id="mode-raw-btn" class="mode-btn" onclick="switchCronMode('raw')">Chuỗi Cron trực tiếp</button>
+              <button type="button" id="mode-builder-btn" class="mode-btn active" onclick="switchCronMode('builder')">Bộ
+                dựng Cron 6 trường</button>
+              <button type="button" id="mode-raw-btn" class="mode-btn" onclick="switchCronMode('raw')">Chuỗi Cron trực
+                tiếp</button>
             </div>
           </div>
 
@@ -982,7 +1001,8 @@
           <div id="cron-raw-section" style="display: none;">
             <div class="form-group">
               <label for="job-expression-raw">Biểu thức Cron (đủ 6 trường)</label>
-              <input id="job-expression-raw" class="input" type="text" placeholder="* * * * * *" oninput="validateCron()" />
+              <input id="job-expression-raw" class="input" type="text" placeholder="* * * * * *"
+                oninput="validateCron()" />
             </div>
           </div>
 
@@ -1009,6 +1029,40 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" onclick="closeJobModal()">Hủy bỏ</button>
           <button type="submit" id="submit-job-btn" class="btn btn-primary">Tạo Job</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: EDIT PROFILE -->
+  <div id="profile-modal-overlay" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Chỉnh Sửa Thông Tin Cá Nhân</h2>
+        <button class="modal-close" onclick="closeProfileModal()">&times;</button>
+      </div>
+      <form id="edit-profile-form" onsubmit="saveProfile(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="profile-name">Tên hiển thị</label>
+            <input id="profile-name" class="input" type="text" placeholder="Ví dụ: Nguyễn Văn A" required />
+          </div>
+          <div class="form-group">
+            <label for="profile-email">Địa chỉ Email</label>
+            <input id="profile-email" class="input" type="email" placeholder="example@mail.com" required />
+          </div>
+          <div class="form-group">
+            <label for="profile-phone">Số điện thoại Việt Nam</label>
+            <input id="profile-phone" class="input" type="text" placeholder="Ví dụ: 0912345678" required />
+          </div>
+          <div class="form-group">
+            <label for="profile-password">Mật khẩu mới (Bỏ trống nếu không muốn đổi)</label>
+            <input id="profile-password" class="input" type="password" placeholder="Nhập mật khẩu mới nếu muốn đổi" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeProfileModal()">Hủy bỏ</button>
+          <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
         </div>
       </form>
     </div>
@@ -1098,7 +1152,8 @@
       <form id="permissions-form" onsubmit="handlePermissionsFormSubmit(event)">
         <input type="hidden" id="permissions-role-id" />
         <div class="modal-body">
-          <p style="font-size: 13px; color: var(--muted); margin-bottom: 16px;">Chọn các quyền hạn gán trực tiếp cho vai trò này. Lưu ý: các vai trò con kế thừa sẽ tự động có các quyền này.</p>
+          <p style="font-size: 13px; color: var(--muted); margin-bottom: 16px;">Chọn các quyền hạn gán trực tiếp cho vai
+            trò này. Lưu ý: các vai trò con kế thừa sẽ tự động có các quyền này.</p>
           <div id="permissions-list-container" style="display: flex; flex-direction: column; gap: 12px;">
             <!-- Loaded dynamically -->
           </div>
@@ -1113,6 +1168,17 @@
 
   <!-- Scripts -->
   <script>
+    // Bắt token từ URL (nếu có từ Google Redirect)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token');
+    const urlUser = urlParams.get('user');
+    if (urlToken && urlUser) {
+      localStorage.setItem('access_token', urlToken);
+      localStorage.setItem('user', decodeURIComponent(urlUser));
+      // Xóa query parameter trên thanh địa chỉ để URL sạch sẽ
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     // Authentication & Fetch helper
     function authenticatedFetch(url, options = {}) {
       const token = localStorage.getItem('access_token');
@@ -1120,7 +1186,7 @@
       if (token) {
         options.headers['Authorization'] = `Bearer ${token}`;
       }
-      
+
       return fetch(url, options).then(res => {
         if (res.status === 401) {
           logout();
@@ -1135,7 +1201,7 @@
       const userStr = localStorage.getItem('user');
       const authOverlay = document.getElementById('auth-overlay');
       const authStatusBar = document.getElementById('auth-status-bar');
-      
+
       if (token && userStr) {
         authOverlay.classList.remove('active');
         authStatusBar.style.display = 'flex';
@@ -1162,7 +1228,7 @@
       const title = document.getElementById('auth-title');
       const subtitle = document.getElementById('auth-subtitle');
       const toggleText = document.getElementById('auth-toggle-text');
-      
+
       if (isRegisterMode) {
         loginForm.style.display = 'none';
         registerForm.style.display = 'grid';
@@ -1182,31 +1248,31 @@
       event.preventDefault();
       const email = document.getElementById('login-email').value.trim();
       const password = document.getElementById('login-password').value;
-      
+
       fetch('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       })
-      .then(res => {
-        if (!res.ok) {
-          return res.json().then(data => {
-            throw new Error(data.message || 'Email hoặc Mật khẩu không chính xác!');
-          });
-        }
-        return res.json();
-      })
-      .then(data => {
-        if (data.access_token) {
-          localStorage.setItem('access_token', data.access_token);
-          localStorage.setItem('user', JSON.stringify(data.user));
-          checkAuth();
-          loadTasks();
-        }
-      })
-      .catch(err => {
-        alert(err.message);
-      });
+        .then(res => {
+          if (!res.ok) {
+            return res.json().then(data => {
+              throw new Error(data.message || 'Email hoặc Mật khẩu không chính xác!');
+            });
+          }
+          return res.json();
+        })
+        .then(data => {
+          if (data.access_token) {
+            localStorage.setItem('access_token', data.access_token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            checkAuth();
+            loadTasks();
+          }
+        })
+        .catch(err => {
+          alert(err.message);
+        });
     }
 
     function handleRegisterSubmit(event) {
@@ -1215,29 +1281,28 @@
       const email = document.getElementById('register-email').value.trim();
       const phone = document.getElementById('register-phone').value.trim();
       const password = document.getElementById('register-password').value;
-      const role = document.getElementById('register-role').value;
-      
+
       fetch('/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, phone, password, role })
+        body: JSON.stringify({ name, email, phone, password })
       })
-      .then(res => {
-        if (!res.ok) {
-          return res.json().then(data => {
-            throw new Error(data.message || 'Lỗi đăng ký tài khoản!');
-          });
-        }
-        return res.json();
-      })
-      .then(data => {
-        alert('Đăng ký thành công! Hãy đăng nhập bằng tài khoản vừa tạo.');
-        toggleAuthMode(false);
-        document.getElementById('login-email').value = email;
-      })
-      .catch(err => {
-        alert(err.message);
-      });
+        .then(res => {
+          if (!res.ok) {
+            return res.json().then(data => {
+              throw new Error(data.message || 'Lỗi đăng ký tài khoản!');
+            });
+          }
+          return res.json();
+        })
+        .then(data => {
+          alert('Đăng ký thành công! Hãy đăng nhập bằng tài khoản vừa tạo.');
+          toggleAuthMode(false);
+          document.getElementById('login-email').value = email;
+        })
+        .catch(err => {
+          alert(err.message);
+        });
     }
 
     function logout() {
@@ -1249,7 +1314,7 @@
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-      
+
       document.getElementById(`tab-${tabId}`).classList.add('active');
       document.getElementById(`tab-${tabId}-btn`).classList.add('active');
 
@@ -1543,7 +1608,7 @@
         .then(roles => {
           const select = document.getElementById('user-role');
           select.innerHTML = roles.map(r => `<option value="${r.name}">${r.name}</option>`).join('');
-          
+
           if (user) {
             editingUserId = user.id;
             document.getElementById('user-modal-title').textContent = 'Sửa thông tin người dùng';
@@ -1809,7 +1874,7 @@
 
               progressStatus.innerHTML = '<span>Hoàn thành tiến trình import!</span>';
               progressStatus.style.color = 'var(--success)';
-              
+
               let msg = `Thành công: ${result?.successCount || 0} tài khoản.`;
               if (result?.errorCount > 0) {
                 msg += ` Thất bại: ${result.errorCount} dòng.`;
@@ -1845,7 +1910,7 @@
         .then(res => res.json())
         .then(data => {
           const { lastSyncTime, nextRun, history } = data;
-          
+
           document.getElementById('sync-stat-last-time').textContent = lastSyncTime ? new Date(lastSyncTime).toLocaleString('vi-VN') : 'Chưa đồng bộ';
           document.getElementById('sync-stat-next-run').textContent = nextRun ? new Date(nextRun).toLocaleString('vi-VN') : 'Không có lịch chạy';
 
@@ -2009,7 +2074,7 @@
     function openPermissionsModal(roleId, roleName) {
       document.getElementById('permissions-role-id').value = roleId;
       document.getElementById('permissions-modal-title').textContent = `Cấu hình quyền hạn cho: ${roleName}`;
-      
+
       const container = document.getElementById('permissions-list-container');
       container.innerHTML = '<div style="color: var(--muted); font-size: 13px;">Đang tải quyền hạn...</div>';
 
@@ -2065,6 +2130,77 @@
           loadRbacData();
         })
         .catch(() => alert('Lỗi lưu cấu hình quyền hạn.'));
+    }
+
+    /* ----------------------------------------------------
+       EDIT PROFILE LOGIC
+       ---------------------------------------------------- */
+    const profileModalOverlay = document.getElementById('profile-modal-overlay');
+
+    function openProfileModal() {
+      authenticatedFetch('/users/profile')
+        .then(res => {
+          if (!res.ok) throw new Error('Không lấy được thông tin profile');
+          return res.json();
+        })
+        .then(user => {
+          document.getElementById('profile-name').value = user.name || '';
+          document.getElementById('profile-email').value = user.email || '';
+          document.getElementById('profile-phone').value = user.phone || '';
+          document.getElementById('profile-password').value = '';
+          profileModalOverlay.classList.add('active');
+        })
+        .catch(err => {
+          alert(err.message);
+        });
+    }
+
+    function closeProfileModal() {
+      profileModalOverlay.classList.remove('active');
+    }
+
+    function saveProfile(e) {
+      e.preventDefault();
+      const name = document.getElementById('profile-name').value.trim();
+      const email = document.getElementById('profile-email').value.trim();
+      const phone = document.getElementById('profile-phone').value.trim();
+      const password = document.getElementById('profile-password').value;
+
+      const payload = { name, email, phone };
+      if (password) {
+        payload.password = password;
+      }
+
+      authenticatedFetch('/users/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+        .then(res => {
+          if (!res.ok) {
+            return res.json().then(data => {
+              throw new Error(data.message || 'Lỗi cập nhật profile');
+            });
+          }
+          return res.json();
+        })
+        .then(data => {
+          alert('Cập nhật profile thành công!');
+          const userStr = localStorage.getItem('user');
+          if (userStr) {
+            const user = JSON.parse(userStr);
+            user.name = data.name;
+            user.email = data.email;
+            localStorage.setItem('user', JSON.stringify(user));
+          }
+          checkAuth();
+          closeProfileModal();
+          const activeTab = document.querySelector('.tab-btn.active');
+          if (activeTab && activeTab.id === 'tab-users-btn') {
+            loadUsers();
+          }
+        })
+        .catch(err => alert(err.message));
     }
 
     // Initial loading
