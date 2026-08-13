@@ -1,13 +1,25 @@
-import { Controller, Post, Body, Get, UseGuards, Req, Res } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, Req, Res, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../user/dto/create-user.dto';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
+import type { Response, Request } from 'express';
+import { JwtService } from '@nestjs/jwt';
+
+// helper ghi lại refresh token vào cookie httponly
+const setRefreshTokenCookie = (res: Response, token: string) => {
+  res.cookie('refresh_token', token, {
+    httpOnly: true, secure: false, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+}
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(
+    private readonly authService: AuthService,
+    private readonly jwtService: JwtService,
+  ) { }
 
   @Post('register')
   @ApiOperation({ summary: 'Đăng ký tài khoản người dùng mới' })
@@ -17,8 +29,50 @@ export class AuthController {
 
   @Post('login')
   @ApiOperation({ summary: 'Đăng nhập hệ thống bằng email và mật khẩu' })
-  login(@Body() body: any) {
-    return this.authService.login(body);
+  async login(@Body() body: any, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.login(body);
+
+    // Ghi refresh_token vào Cookie
+    setRefreshTokenCookie(res, result.refreshToken);
+
+    // Chỉ trả về access_token và user info cho frontend (không trả về refresh_token ở body)
+    return {
+      access_token: result.accessToken,
+      user: result.user,
+    };
+  }
+
+  @Post('refresh')
+  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const refreshToken = req.cookies['refresh_token'];
+    if (!refreshToken) {
+      throw new UnauthorizedException('Không tìm thấy Refresh Token!');
+    }
+    const result = await this.authService.refreshTokens(refreshToken);
+
+    // Đổi mới refresh_token trong cookie, Xoay vòng token
+    setRefreshTokenCookie(res, result.refreshToken);
+
+    return { access_token: result.accessToken };
+  }
+
+  @Post('logout')
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    // Tìm userId từ payload của access token (nếu có AuthGuard chặn trước đó)
+    // Hoặc lấy từ body/query tùy bạn thiết kế. Ví dụ lấy từ cookie để xử lý nhanh:
+    const refreshToken = req.cookies['refresh_token'];
+    if (refreshToken) {
+      try {
+        const decoded = this.jwtService.decode(refreshToken) as any;
+        if (decoded && decoded.sub) {
+          await this.authService.logout(decoded.sub);
+        }
+      } catch (err) { }
+    }
+
+    // Xóa cookie của trình duyệt
+    res.clearCookie('refresh_token');
+    return { message: 'Đăng xuất thành công!' };
   }
 
   // Kích hoạt chuyển hướng sang Google
@@ -29,12 +83,15 @@ export class AuthController {
   // Tiếp nhận callback từ Google sau khi đăng nhập thành công
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleAuthRedirect(@Req() req, @Res() res) {
+  async googleAuthRedirect(@Req() req, @Res() res: Response) {
     // req.user chứa thông tin từ hàm validate() của GoogleStrategy
     const result = await this.authService.validateGoogleUser(req.user);
 
+    // Ghi refresh_token vào Cookie
+    setRefreshTokenCookie(res, result.refreshToken);
+
     // Gửi token và thông tin user về giao diện Frontend qua URL Query Parameters
-    const token = result.access_token;
+    const token = result.accessToken;
     const userStr = encodeURIComponent(JSON.stringify(result.user));
     res.redirect(`/index.html?token=${token}&user=${userStr}`);
   }

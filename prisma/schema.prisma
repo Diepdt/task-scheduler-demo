@@ -41,6 +41,7 @@ model User {
   googleId  String?  @unique
   name      String
   phone     String   @unique
+  refreshToken String?
   userRoles UserRole[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

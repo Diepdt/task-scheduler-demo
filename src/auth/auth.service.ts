@@ -55,6 +55,27 @@ export class AuthService {
     return result;
   }
 
+  async generateTokens(payload: any) {
+    const [accessToken, refreshToken] = await Promise.all([
+      this.jwtService.signAsync(payload, {
+        secret: process.env.JWT_SECRET || 'super-secret-key-12345',
+        expiresIn: '15m',
+      }),
+      this.jwtService.signAsync(payload, {
+        secret: process.env.JWT_REFRESH_SECRET || 'refresh-secret-key-67890',
+        expiresIn: '7d',
+      }),
+    ]);
+
+    const hashedRefreshToken = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    await this.prisma.user.update({
+      where: { id: payload.sub },
+      data: { refreshToken: hashedRefreshToken },
+    });
+
+    return { accessToken, refreshToken };
+  }
+
   async login(body: any) {
     const { email, password } = body;
     const user = await this.prisma.user.findUnique({
@@ -79,8 +100,10 @@ export class AuthService {
 
     const roleNames = user.userRoles.map((ur) => ur.role.name);
     const payload = { sub: user.id, email: user.email, roles: roleNames };
+    const tokens = await this.generateTokens(payload);
+
     return {
-      access_token: await this.jwtService.signAsync(payload),
+      ...tokens,
       user: {
         id: user.id,
         name: user.name,
@@ -93,7 +116,6 @@ export class AuthService {
   async validateGoogleUser(googleProfile: any) {
     const { email, googleId, firstName, lastName } = googleProfile;
 
-    // Tìm user theo email hoặc googleId
     let user = await this.prisma.user.findFirst({
       where: {
         OR: [{ email }, { googleId }],
@@ -101,7 +123,6 @@ export class AuthService {
       include: { userRoles: { include: { role: true } } }
     });
 
-    // Nếu đã có tài khoản
     if (user) {
       if (!user.googleId) {
         user = await this.prisma.user.update({
@@ -111,7 +132,6 @@ export class AuthService {
         });
       }
     } else {
-      // Nếu chưa tài khoản thì mới tạo mới 
       const fullName = `${lastName || ''} ${firstName || ''}`.trim() || 'Google User';
       const randomPhone = `09${Math.floor(10000000 + Math.random() * 90000000)}`;
 
@@ -131,12 +151,12 @@ export class AuthService {
       });
     }
 
-    // Trả về JWT token đăng nhập
     const roleNames = user.userRoles.map((ur) => ur.role.name);
     const payload = { sub: user.id, email: user.email, roles: roleNames };
+    const tokens = await this.generateTokens(payload);
 
     return {
-      access_token: await this.jwtService.signAsync(payload),
+      ...tokens,
       user: {
         id: user.id,
         name: user.name,
@@ -145,5 +165,46 @@ export class AuthService {
       }
     };
   }
+
+  async refreshTokens(refresh_token: string) {
+    try {
+      // xác thực refreshToken
+      const payload = await this.jwtService.verifyAsync(refresh_token, {
+        secret: process.env.JWT_REFRESH_SECRET,
+      });
+
+      // tìm user trong db
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        include: { userRoles: { include: { role: true } } },
+      });
+
+      if (!user || !user.refreshToken) {
+        throw new UnauthorizedException("Truy cập bị từ chối!");
+      }
+
+      // Kiểm tra xem refresh token có khớp với db k
+      const hashedRt = crypto.createHash('sha256').update(refresh_token).digest('hex');
+      if (user.refreshToken !== hashedRt) {
+        throw new UnauthorizedException("Truy cập bị từ chối!");
+      }
+
+      // sinh cặp tokens mới, xoay vòng token
+      const roleNames = user.userRoles.map((ur) => ur.role.name);
+      const newPayload = { sub: user.id, email: user.email, roles: roleNames };
+      const tokens = await this.generateTokens(newPayload);
+      return tokens;
+    } catch (error) {
+      throw new UnauthorizedException("Phiên đăng nhập hết hạn hoặc không hợp lệ");
+    }
+  }
+
+  async logout(userId: number) {
+    // xóa refresh token trong db khi logout
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { refreshToken: null }
+    })
+  };
 }
 
