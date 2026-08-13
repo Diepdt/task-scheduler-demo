@@ -11,6 +11,9 @@ import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 
 @Injectable()
 export class UserService {
@@ -18,6 +21,7 @@ export class UserService {
     private readonly prisma: PrismaService,
     private readonly minioService: MinioService,
     @InjectQueue('import-users') private readonly importQueue: Queue,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) { }
 
   async create(dto: CreateUserDto) {
@@ -178,6 +182,9 @@ export class UserService {
       };
     }
 
+    const cacheKey = `user:permissions:${id}`;
+    await this.cacheManager.del(cacheKey);
+
     return this.prisma.user.update({
       where: { id },
       data: updateData,
@@ -196,6 +203,10 @@ export class UserService {
     await this.prisma.user.delete({
       where: { id },
     });
+
+    const cacheKey = `user:permissions:${id}`;
+    await this.cacheManager.del(cacheKey);
+
     return { message: `Xóa thành công người dùng với ID ${id}` };
   }
 
@@ -443,15 +454,15 @@ export class UserService {
     for (let batchStart = 1; batchStart <= count; batchStart += batchSize) {
       const usersData: any[] = [];
       const batchEnd = Math.min(batchStart + batchSize - 1, count);
-      
+
       for (let i = batchStart; i <= batchEnd; i++) {
         const timestamp = Date.now();
         const randomStr = crypto.randomBytes(4).toString('hex');
         const email = `demo.user${i}.${timestamp}.${randomStr}@example.com`;
-        
+
         // Random 10-digit Vietnamese phone number
         const randomPhone = `09${Math.floor(10000000 + Math.random() * 90000000)}`;
-        
+
         usersData.push({
           email,
           password: `password_demo_${i}`,

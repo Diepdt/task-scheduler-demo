@@ -93,7 +93,7 @@ export class AuthService {
   async validateGoogleUser(googleProfile: any) {
     const { email, googleId, firstName, lastName } = googleProfile;
 
-    // 1. Tìm user theo email hoặc googleId
+    // Tìm user theo email hoặc googleId
     let user = await this.prisma.user.findFirst({
       where: {
         OR: [{ email }, { googleId }],
@@ -101,9 +101,8 @@ export class AuthService {
       include: { userRoles: { include: { role: true } } }
     });
 
-    // 2. Nếu đã có tài khoản
+    // Nếu đã có tài khoản
     if (user) {
-      // Nếu chưa liên kết googleId thì cập nhật liên kết
       if (!user.googleId) {
         user = await this.prisma.user.update({
           where: { id: user.id },
@@ -112,7 +111,7 @@ export class AuthService {
         });
       }
     } else {
-      // 3. Nếu CHƯA CÓ tài khoản thì mới tạo mới (Đây là else của if (user))
+      // Nếu chưa tài khoản thì mới tạo mới 
       const fullName = `${lastName || ''} ${firstName || ''}`.trim() || 'Google User';
       const randomPhone = `09${Math.floor(10000000 + Math.random() * 90000000)}`;
 
@@ -132,7 +131,7 @@ export class AuthService {
       });
     }
 
-    // 4. Trả về JWT token đăng nhập
+    // Trả về JWT token đăng nhập
     const roleNames = user.userRoles.map((ur) => ur.role.name);
     const payload = { sub: user.id, email: user.email, roles: roleNames };
 

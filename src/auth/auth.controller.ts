@@ -21,12 +21,12 @@ export class AuthController {
     return this.authService.login(body);
   }
 
-  // Route 1: Kích hoạt chuyển hướng sang Google
+  // Kích hoạt chuyển hướng sang Google
   @Get('google')
   @UseGuards(AuthGuard('google'))
   async googleAuth(@Req() req) { }
 
-  // Route 2: Tiếp nhận callback từ Google sau khi đăng nhập thành công
+  // Tiếp nhận callback từ Google sau khi đăng nhập thành công
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   async googleAuthRedirect(@Req() req, @Res() res) {
