@@ -105,7 +105,7 @@ export class SyncService {
         }
 
         const sql = `
-          INSERT INTO SyncedUser (id, email, password, name, phone, role, createdAt, updatedAt, syncedAt)
+          INSERT IGNORE INTO SyncedUser (id, email, password, name, phone, role, createdAt, updatedAt, syncedAt)
           VALUES ${valuesSql.join(', ')}
           ON DUPLICATE KEY UPDATE
             email = VALUES(email),

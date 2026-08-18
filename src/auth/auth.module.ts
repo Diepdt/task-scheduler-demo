@@ -5,11 +5,13 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { GoogleStrategy } from './strategies/google.strategy';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
     PrismaModule,
     PassportModule,
+    UserModule,
     JwtModule.register({
       global: true,
       secret: process.env.JWT_SECRET || 'super-secret-key-12345',

@@ -13,6 +13,7 @@ import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-yet';
+import { MailerModule } from '@nestjs-modules/mailer';
 
 @Module({
   imports: [
@@ -39,6 +40,21 @@ import { redisStore } from 'cache-manager-redis-yet';
           },
         }),
       }),
+    }),
+
+    MailerModule.forRoot({
+      transport: {
+        host: process.env.MAIL_HOST,
+        port: Number(process.env.MAIL_PORT),
+        secure: false,
+        auth: {
+          user: process.env.MAIL_USE, // <-- Sửa từ MAIL_USER thành MAIL_USE để khớp với file .env
+          pass: process.env.MAIL_PASS,
+        }
+      },
+      defaults: {
+        from: process.env.MAIL_FROM
+      }
     }),
 
     SchedulerModule,

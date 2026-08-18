@@ -43,6 +43,11 @@ Hệ thống quản trị và đồng bộ dữ liệu nâng cao sử dụng **N
 *   **Bản sao MariaDB**: Bảng `SyncedUser` lưu giữ thông tin copy của PostgreSQL.
 *   **Delta-Sync Logic**: [SyncService](src/sync/sync.service.ts) tự động tìm kiếm người dùng thay đổi từ mốc đồng bộ thành công trước đó (`updatedAt > lastSyncTime`) và tiến hành `upsert` (Insert hoặc Update) hàng loạt (Batch) sang MariaDB để bảo vệ khóa chính.
 *   **Lập lịch tự động (Cron Scheduler)**: Kết nối dịch vụ đồng bộ vào [TaskProcessor](src/scheduler/task.processor.ts). Khi nhận Job có tên chứa chữ `"Đồng bộ dữ liệu"`, hệ thống tự động gọi tiến trình đồng bộ ngầm và ghi log kết quả (`SyncLog`).
+*   **Gửi Email chúc mừng sinh nhật tự động**:
+    *   Tích hợp `@nestjs-modules/mailer` kết hợp máy chủ SMTP (Gmail App Password) cấu hình tại [app.module.ts](src/app.module.ts).
+    *   Bảng `User` được mở rộng thêm trường `birthday` để lưu ngày sinh nhật của người dùng.
+    *   Khi Task Scheduler kích hoạt một tác vụ có tiêu đề chứa chữ `"Chúc mừng sinh nhật"`, [TaskProcessor](src/scheduler/task.processor.ts) sẽ tự động lọc những người dùng có ngày và tháng sinh trùng khớp với ngày hiện tại của hệ thống.
+    *   Hệ thống gọi dịch vụ [EmailService](src/common/services/email.service.ts) thực hiện gửi email chúc mừng định dạng HTML bắt mắt hoàn toàn tự động ở background.
 *   **Giao diện Dashboard**: Tích hợp tab **"Đồng bộ CSDL"** hiển thị trạng thái hệ thống, thời gian đồng bộ gần nhất/kế tiếp, nút **Sync Now** (chạy ngay lập tức) và bảng theo dõi 10 log đồng bộ gần đây nhất.
 
 ### 📌 Bước 6: Xây Dựng Health Check API

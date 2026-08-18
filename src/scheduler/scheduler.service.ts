@@ -21,7 +21,7 @@ export class SchedulerService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly schedulerRegistry: SchedulerRegistry,
     @InjectQueue('task-scheduler') private readonly taskQueue: Queue,
-  ) {}
+  ) { }
 
   async onModuleInit() {
     const tasks = await this.prisma.task.findMany();
@@ -33,9 +33,9 @@ export class SchedulerService implements OnModuleInit {
   validate(dto: ValidateCronDto) {
     try {
       const interval = CronExpressionParser.parse(dto.expression);
-      return { nextRun: interval.next().toDate() };
+      return { isValid: true, nextDate: interval.next().toDate() };
     } catch (error: unknown) {
-      return { message: this.getErrorMessage(error) };
+      return { isValid: false, message: this.getErrorMessage(error) };
     }
   }
 

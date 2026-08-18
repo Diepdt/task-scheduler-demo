@@ -1,0 +1,213 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #f8fafc !important;
+    color: #1e293b !important;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+/* Base Light Theme overrides for all custom dark background classes */
+.bg-\[\#0b0c10\],
+.bg-\[\#07080a\],
+.bg-\[\#0d0f14\],
+.bg-slate-900,
+.bg-gray-900,
+.bg-zinc-900 {
+  background-color: #f8fafc !important;
+}
+
+/* Card and Container Backgrounds (Soft White) */
+.bg-\[\#111318\],
+.bg-\[\#161920\],
+.bg-slate-950,
+.bg-black,
+.bg-\[\#111318\]\/60,
+.bg-\[\#161920\]\/40,
+.bg-\[\#111318\]\/20,
+.bg-\[\#161920\]\/20,
+.hover\:bg-\[\#161920\]\/20:hover {
+  background-color: #ffffff !important;
+}
+
+/* Table rows and hover states */
+table tr,
+table tbody tr {
+  background-color: #ffffff !important;
+}
+
+table tr:hover,
+table tbody tr:hover {
+  background-color: #f1f5f9 !important;
+}
+
+/* Table headers */
+table th {
+  background-color: #f1f5f9 !important;
+  color: #1e293b !important;
+  border-bottom: 2px solid #e2e8f0 !important;
+}
+
+table td {
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+/* Sidebar and Navigation (Clean soft look) */
+aside,
+.aside-container,
+[class*="sidebar"] {
+  background-color: #ffffff !important;
+  border-right: 1px solid #e2e8f0 !important;
+}
+
+/* Sidebar hover items */
+.hover\:bg-\[\#20242e\]:hover,
+.hover\:bg-\[\#161920\]:hover,
+.hover\:bg-gray-800:hover,
+.hover\:bg-slate-800:hover {
+  background-color: #f1f5f9 !important;
+}
+
+/* Active tab state in sidebar: Replace dark blue gradient with soft pastel blue */
+.bg-gradient-to-r.from-blue-600.to-indigo-600,
+.from-blue-600,
+.to-indigo-600 {
+  background-image: none !important;
+  background-color: #e0f2fe !important;
+  box-shadow: none !important;
+}
+
+.bg-gradient-to-r.from-blue-600.to-indigo-600.text-white,
+.from-blue-600.text-white {
+  color: #0369a1 !important;
+}
+
+/* Inputs, Selects, and Textareas */
+input, select, textarea,
+input.bg-\[\#161920\], 
+select.bg-\[\#161920\], 
+textarea.bg-\[\#161920\],
+input.bg-\[\#111318\], 
+select.bg-\[\#111318\],
+.bg-\[\#161920\] input,
+.bg-\[\#161920\] select {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: #3b82f6 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Font color overrides */
+body, div, p, span, h1, h2, h3, h4, h5, h6, td, th, li, a, label, select, input {
+  color: #1e293b;
+}
+
+.text-white,
+.text-gray-100,
+.text-gray-200,
+.text-gray-300 {
+  color: #1e293b !important;
+}
+
+.text-gray-400,
+.text-gray-500 {
+  color: #64748b !important;
+}
+
+/* Borders */
+.border-\[\#232730\],
+.border-\[\#1f232c\],
+.border-t,
+.border-b,
+.border-l,
+.border-r,
+.border-t.border-\[\#232730\],
+.border-b.border-\[\#232730\],
+.border-t.border-\[\#1f232c\],
+.border-b.border-\[\#1f232c\] {
+  border-color: #e2e8f0 !important;
+}
+
+/* Primary Button Styling (Vibrant but soft blue) */
+.bg-blue-600,
+.bg-blue-500 {
+  background-image: none !important;
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+  border: 1px solid #bae6fd !important;
+  box-shadow: none !important;
+}
+.bg-blue-600:hover,
+.bg-blue-500:hover {
+  background-color: #bae6fd !important;
+  color: #0369a1 !important;
+}
+
+/* Tab button colors */
+.bg-blue-500\/10 {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+}
+.text-blue-400 {
+  color: #0369a1 !important;
+}
+
+/* Custom buttons (like cancel/import) */
+button.bg-\[\#161920\],
+button.bg-\[\#111318\],
+button.bg-\[\#1f232c\] {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+button.bg-\[\#161920\]:hover,
+button.bg-\[\#111318\]:hover,
+button.bg-\[\#1f232c\]:hover {
+  background-color: #e2e8f0 !important;
+}
+
+/* Edit action icon buttons (dark edit container to light gray) */
+.bg-\[\#1f232c\] {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}
+.hover\:bg-\[\#2c313e\]:hover {
+  background-color: #e2e8f0 !important;
+}
+
+/* Role tag styling overrides (ADMIN/USER pills) */
+.bg-\[\#1c1e26\] {
+  background-color: #f1f5f9 !important;
+}
+.border-\[\#2a2d39\] {
+  border-color: #cbd5e1 !important;
+}
+
+/* Green status override */
+.text-emerald-400 {
+  color: #10b981 !important;
+}
+.bg-emerald-500\/10 {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+}
+
+/* Red status override */
+.text-rose-400 {
+  color: #f43f5e !important;
+}
+.bg-rose-500\/10 {
+  background-color: rgba(244, 63, 94, 0.1) !important;
+}
+
+/* Date picker color visibility */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.2);
+  cursor: pointer;
+}

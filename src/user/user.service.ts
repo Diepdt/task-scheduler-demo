@@ -50,6 +50,7 @@ export class UserService {
     return this.prisma.user.create({
       data: {
         ...userDto,
+        birthday: userDto.birthday ? new Date(userDto.birthday) : null,
         password: hashedPassword,
         userRoles: {
           create: dbRoles.map((r) => ({
@@ -132,7 +133,11 @@ export class UserService {
     if (!user) {
       throw new NotFoundException(`Không tìm thấy người dùng với ID ${id}`);
     }
-    return user;
+    const permissions = await this.getUserPermissions(id);
+    return {
+      ...user,
+      permissions,
+    };
   }
 
   async update(id: number, dto: UpdateUserDto) {
@@ -164,6 +169,9 @@ export class UserService {
 
     const { roles, ...updateDto } = dto;
     const updateData: any = { ...updateDto };
+    if (updateDto.birthday !== undefined) {
+      updateData.birthday = updateDto.birthday ? new Date(updateDto.birthday) : null;
+    }
     if (dto.password) {
       updateData.password = crypto.createHash('sha256').update(dto.password).digest('hex');
     }
@@ -562,5 +570,68 @@ export class UserService {
     }
 
     return { message: 'Cấu hình quyền cho vai trò thành công!' };
+  }
+
+  async getUserPermissions(userId: number): Promise<string[]> {
+    const cacheKey = `user:permissions:${userId}`;
+    let userPermissions = await this.cacheManager.get<string[]>(cacheKey);
+
+    if (!userPermissions) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        include: { userRoles: true },
+      });
+
+      if (!user) return [];
+
+      const directRoleIds = user.userRoles?.map((ur) => ur.roleId) || [];
+      if (directRoleIds.length === 0) {
+        return [];
+      }
+
+      const allRoleIds = await this.resolveInheritedRoles(directRoleIds);
+      userPermissions = await this.getPermissionsForRoles(allRoleIds);
+
+      await this.cacheManager.set(cacheKey, userPermissions, 3600000);
+    }
+
+    return userPermissions;
+  }
+
+  private async resolveInheritedRoles(roleIds: number[]): Promise<number[]> {
+    const resolveIds = new Set<number>(roleIds);
+    let currentRoleIds = [...roleIds];
+
+    while (currentRoleIds.length > 0) {
+      const roles = await this.prisma.role.findMany({
+        where: { id: { in: currentRoleIds } },
+        select: { id: true, parentId: true },
+      });
+
+      const parentIds: number[] = [];
+      for (const r of roles) {
+        if (r.parentId && !resolveIds.has(r.parentId)) {
+          resolveIds.add(r.parentId);
+          parentIds.push(r.parentId);
+        }
+      }
+      currentRoleIds = parentIds;
+    }
+
+    return Array.from(resolveIds);
+  }
+
+  private async getPermissionsForRoles(roleIds: number[]): Promise<string[]> {
+    const rolePermissions = await this.prisma.rolePermission.findMany({
+      where: { roleId: { in: roleIds } },
+      select: {
+        permission: {
+          select: { name: true },
+        },
+      },
+    });
+
+    const permNames = rolePermissions.map((rp) => rp.permission.name);
+    return Array.from(new Set(permNames));
   }
 }

@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength, IsArray, IsOptional } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength, IsArray, IsOptional, IsDateString } from 'class-validator';
 import { IsVietnamesePhone } from '../../common/decorators/is-vietnamese-phone.decorator';
 
 export class CreateUserDto {
@@ -18,6 +18,10 @@ export class CreateUserDto {
   @IsVietnamesePhone({ message: 'Số điện thoại không hợp lệ' })
   @IsNotEmpty({ message: 'Số điện thoại không được để trống' })
   phone: string;
+
+  @IsDateString({}, { message: 'Ngày sinh không đúng định dạng ISO' })
+  @IsOptional()
+  birthday?: string;
 
   @IsArray()
   @IsString({ each: true })

@@ -5,8 +5,9 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import type { Response, Request } from 'express';
 import { JwtService } from '@nestjs/jwt';
+import { AuthGuard as CustomAuthGuard } from '../common/guards/auth.guard';
 
-// helper ghi lại refresh token vào cookie httponly
+// helper ghi lại refresh token vào cookie của trình duyệt
 const setRefreshTokenCookie = (res: Response, token: string) => {
   res.cookie('refresh_token', token, {
     httpOnly: true, secure: false, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000,
@@ -57,17 +58,11 @@ export class AuthController {
   }
 
   @Post('logout')
+  @UseGuards(CustomAuthGuard)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    // Tìm userId từ payload của access token (nếu có AuthGuard chặn trước đó)
-    // Hoặc lấy từ body/query tùy bạn thiết kế. Ví dụ lấy từ cookie để xử lý nhanh:
-    const refreshToken = req.cookies['refresh_token'];
-    if (refreshToken) {
-      try {
-        const decoded = this.jwtService.decode(refreshToken) as any;
-        if (decoded && decoded.sub) {
-          await this.authService.logout(decoded.sub);
-        }
-      } catch (err) { }
+    const userId = (req as any).user?.id;
+    if (userId) {
+      await this.authService.logout(userId);
     }
 
     // Xóa cookie của trình duyệt

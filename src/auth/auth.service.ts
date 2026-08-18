@@ -4,12 +4,14 @@ import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { CreateUserDto } from '../user/dto/create-user.dto';
 import { create } from 'domain';
+import { UserService } from '../user/user.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly userService: UserService,
   ) { }
 
   hashPassword(password: string): string {
@@ -101,6 +103,7 @@ export class AuthService {
     const roleNames = user.userRoles.map((ur) => ur.role.name);
     const payload = { sub: user.id, email: user.email, roles: roleNames };
     const tokens = await this.generateTokens(payload);
+    const permissions = await this.userService.getUserPermissions(user.id);
 
     return {
       ...tokens,
@@ -109,6 +112,7 @@ export class AuthService {
         name: user.name,
         email: user.email,
         roles: roleNames,
+        permissions,
       },
     };
   }
@@ -154,6 +158,7 @@ export class AuthService {
     const roleNames = user.userRoles.map((ur) => ur.role.name);
     const payload = { sub: user.id, email: user.email, roles: roleNames };
     const tokens = await this.generateTokens(payload);
+    const permissions = await this.userService.getUserPermissions(user.id);
 
     return {
       ...tokens,
@@ -161,7 +166,8 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
-        roles: roleNames
+        roles: roleNames,
+        permissions,
       }
     };
   }

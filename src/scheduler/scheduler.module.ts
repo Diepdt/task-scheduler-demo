@@ -5,6 +5,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { BullModule } from '@nestjs/bullmq';
 import { TaskProcessor } from './task.processor';
 import { SyncModule } from '../sync/sync.module';
+import { EmailService } from 'src/common/services/email.service';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { SyncModule } from '../sync/sync.module';
     }),
   ],
   controllers: [SchedulerController],
-  providers: [SchedulerService, TaskProcessor],
+  providers: [SchedulerService, TaskProcessor, EmailService],
 })
-export class SchedulerModule {}
+export class SchedulerModule { }
 
